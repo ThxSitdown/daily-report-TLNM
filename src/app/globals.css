@@ -1,5 +1,4 @@
-/* src/app/globals.css */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 * {
   box-sizing: border-box;
@@ -8,40 +7,51 @@
 }
 
 :root {
-  --bg: #0f1117;
-  --surface: #181c27;
-  --surface2: #1e2333;
-  --border: #2a3045;
-  --accent: #4f8ef7;
-  --accent2: #38d9a9;
-  --warn: #f7c94f;
-  --danger: #f76f6f;
-  --text: #e8ecf4;
-  --text2: #8896b3;
-  --success: #38d9a9;
-  --radius: 12px;
-  --radius-sm: 8px;
+  --bg: #F7F8FA;
+  --white: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface2: #F0F2F6;
+  --border: #E2E6ED;
+  --border-focus: #2563EB;
+  --accent: #1E40AF;
+  --accent-light: #DBEAFE;
+  --accent2: #0EA5E9;
+  --teal: #0D9488;
+  --teal-light: #CCFBF1;
+  --warn: #D97706;
+  --warn-light: #FEF3C7;
+  --danger: #DC2626;
+  --danger-light: #FEE2E2;
+  --success: #059669;
+  --success-light: #D1FAE5;
+  --text: #111827;
+  --text2: #6B7280;
+  --text3: #9CA3AF;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05);
 }
 
 html, body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'IBM Plex Sans Thai', sans-serif;
-  font-size: 15px;
+  font-family: 'Prompt', sans-serif;
+  font-size: 14px;
   line-height: 1.6;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-/* Form Elements */
 input, select, textarea {
-  font-family: inherit;
+  font-family: 'Prompt', sans-serif;
   font-size: 14px;
-  background: var(--bg);
+  background: var(--white);
   border: 1.5px solid var(--border);
   color: var(--text);
   border-radius: var(--radius-sm);
@@ -49,25 +59,30 @@ input, select, textarea {
   width: 100%;
   transition: border-color 0.15s, box-shadow 0.15s;
   outline: none;
+  -webkit-appearance: none;
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.12);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
 }
 
-select option {
-  background: var(--surface2);
+input::placeholder, textarea::placeholder {
+  color: var(--text3);
 }
 
-textarea {
-  resize: vertical;
-  min-height: 60px;
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B7280' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
 }
 
-/* Buttons */
+textarea { resize: vertical; min-height: 56px; }
+
 button {
-  font-family: inherit;
+  font-family: 'Prompt', sans-serif;
   cursor: pointer;
   border: none;
   border-radius: var(--radius-sm);
@@ -75,12 +90,6 @@ button {
   font-weight: 500;
   transition: all 0.15s;
 }
+button:active { transform: scale(0.97); }
 
-button:active {
-  transform: scale(0.97);
-}
-
-/* Utility */
-.mono {
-  font-family: 'IBM Plex Mono', monospace;
-}
+.mono { font-family: 'IBM Plex Mono', monospace; }
