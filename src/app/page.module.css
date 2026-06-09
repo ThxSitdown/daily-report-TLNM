@@ -790,3 +790,49 @@
   background: var(--border);
   margin: 14px 0;
 }
+
+/* ─── INFO NOTE ─── */
+.infoNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--accent-light);
+  border: 1px solid #BFDBFE;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: #1E40AF;
+  line-height: 1.5;
+}
+
+/* ─── PROGRESS BAR ─── */
+.progressBar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 2px 0;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #0EA5E9, #3B82F6);
+  border-radius: 2px;
+  animation: progressAnim 1.5s ease-in-out infinite;
+  width: 60%;
+}
+
+.progressUpload {
+  background: linear-gradient(90deg, #7C3AED, #A855F7);
+}
+
+@keyframes progressAnim {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+/* ─── EXTRA BUTTON STATES ─── */
+.testBtnError {
+  background: var(--danger-light);
+  color: var(--danger);
+}
