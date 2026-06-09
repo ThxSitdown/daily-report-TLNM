@@ -5,6 +5,7 @@ import {
   LOCATION_LABELS, UPS_BUILDINGS,
   NetworkTestData, UpsData, RoomData, ServerRoomData
 } from '@/lib/types'
+import { runClientSpeedTest } from '@/lib/clientSpeedTest'
 
 /* ───────────────────────── helpers ───────────────────────── */
 function formatReport(
@@ -112,35 +113,67 @@ export default function HomePage() {
     const updated = [...networkTests]
     updated[index] = { ...updated[index], testing: true, tested: false }
     setNetworkTests(updated)
+
     try {
-      const res = await fetch('/api/speedtest', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location: networkTests[index].location })
-      })
-      const data = await res.json()
-      updated[index] = { ...updated[index], download: String(data.download), upload: String(data.upload), testing: false, tested: true }
-    } catch {
-      updated[index] = { ...updated[index], testing: false }
+      const result = await runClientSpeedTest()
+
+      updated[index] = {
+        ...updated[index],
+        download: result.download,
+        upload: result.upload,
+        testing: false,
+        tested: true,
+      }
+    } catch (error) {
+      console.error(error)
+
+      updated[index] = {
+        ...updated[index],
+        testing: false,
+        tested: false,
+      }
+
+      alert('Speed Test Failed')
     }
+
     setNetworkTests([...updated])
   }
 
-  const runRoomSpeedTest = async (index: number) => {
-    const updated = [...roomChecks]
-    updated[index] = { ...updated[index], testingNet: true }
-    setRoomChecks(updated)
-    try {
-      const res = await fetch('/api/speedtest', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location: `room_${updated[index].roomNumber}` })
-      })
-      const data = await res.json()
-      updated[index] = { ...updated[index], internetDown: String(data.download), internetUp: String(data.upload), testingNet: false, testedNet: true }
-    } catch {
-      updated[index] = { ...updated[index], testingNet: false }
-    }
-    setRoomChecks([...updated])
+const runRoomSpeedTest = async (index: number) => {
+  const updated = [...roomChecks]
+
+  updated[index] = {
+    ...updated[index],
+    testingNet: true,
+    testedNet: false,
   }
+
+  setRoomChecks(updated)
+
+  try {
+    const result = await runClientSpeedTest()
+
+    updated[index] = {
+      ...updated[index],
+      internetDown: result.download,
+      internetUp: result.upload,
+      testingNet: false,
+      testedNet: true,
+    }
+  } catch (error) {
+    console.error(error)
+
+    updated[index] = {
+      ...updated[index],
+      testingNet: false,
+      testedNet: false,
+    }
+
+    alert('Speed Test Failed')
+  }
+
+  setRoomChecks([...updated])
+}
 
   /* ── update helpers ── */
   const updateNet = (i: number, f: keyof NetworkTestData, v: string | boolean) =>
