@@ -194,7 +194,8 @@ export default function HomePage() {
             <div className={styles.heroTitle}>IT Daily Report</div>
             <div className={styles.heroSub}>89 Chonprathan Rd, Nimmanhaemin, Chiang Mai 50200</div>
             <div className={styles.heroBadge}>
-              Travelodge Nimman
+              <i className="bi bi-shield-check" />
+              Travelodge Nimman — 413 Rooms
             </div>
           </div>
         </div>
@@ -234,6 +235,11 @@ export default function HomePage() {
 
         {/* ══ FORM ══ */}
         {!showReport && (<>
+
+          <div className={styles.infoNote}>
+            <i className="bi bi-wifi" />
+            <span>Speed test วัดจาก <strong>device นี้</strong> โดยตรง — ค่าที่ได้คือความเร็ว WiFi จริงของพื้นที่</span>
+          </div>
 
           {/* NETWORK */}
           <div className={styles.section}>

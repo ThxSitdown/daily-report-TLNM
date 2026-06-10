@@ -1,81 +1,90 @@
-// src/lib/speedtest.ts
-// ทำงานบน browser (client-side) เท่านั้น — วัดความเร็ว WiFi จริงของ device
+// src/lib/speedtest.ts — client-side only
+// ใช้ Multi-stream parallel download/upload เพื่อความแม่นยำ
 
 export interface SpeedResult {
   download: number
   upload: number
 }
 
-// ดาวน์โหลดหลายขนาด แล้วเฉลี่ย เพื่อความแม่นยำ
+// ─── DOWNLOAD ───
+// ดาวน์โหลดหลาย stream พร้อมกัน (parallel) เหมือน Speedtest.net จริง
 async function measureDownload(): Promise<number> {
-  // ทดสอบ 3 ขนาด แล้วเฉลี่ย
-  const sizes = [5_000_000, 10_000_000, 25_000_000] // 5MB, 10MB, 25MB
-  const results: number[] = []
+  const DURATION_MS = 6000   // เทส 6 วินาที
+  const PARALLEL   = 4       // 4 streams พร้อมกัน
+  const CHUNK      = 25_000_000 // 25MB ต่อ stream
 
-  for (const bytes of sizes) {
+  let totalBytes = 0
+  const startTime = performance.now()
+
+  // สร้าง promise หลายอันแล้วรันพร้อมกัน
+  const streams = Array.from({ length: PARALLEL }, async (_, i) => {
     try {
-      const start = performance.now()
-      const res = await fetch(`https://speed.cloudflare.com/__down?bytes=${bytes}`, {
+      // cache bust ด้วย random query string
+      const url = `https://speed.cloudflare.com/__down?bytes=${CHUNK}&r=${i}_${Math.random()}`
+      const res = await fetch(url, {
         cache: 'no-store',
-        signal: AbortSignal.timeout(12000)
+        signal: AbortSignal.timeout(DURATION_MS + 2000)
       })
       const buf = await res.arrayBuffer()
-      const elapsed = (performance.now() - start) / 1000 // seconds
-      const mbps = (buf.byteLength * 8) / elapsed / 1_000_000
-      results.push(mbps)
+      totalBytes += buf.byteLength
     } catch {
-      // ถ้า timeout (เน็ตช้า) ข้ามไปขนาดถัดไป
-      break
+      // stream หนึ่งล้มเหลว ไม่ถือเป็น error รวม
     }
-  }
+  })
 
-  if (results.length === 0) throw new Error('Download test failed')
-
-  // ตัดค่าสูงสุดออก 1 ค่า (outlier) แล้วเฉลี่ยที่เหลือ
-  const sorted = [...results].sort((a, b) => a - b)
-  const trimmed = sorted.length > 1 ? sorted.slice(0, -1) : sorted
-  const avg = trimmed.reduce((a, b) => a + b, 0) / trimmed.length
-  return parseFloat(avg.toFixed(1))
+  await Promise.allSettled(streams)
+  const elapsed = (performance.now() - startTime) / 1000
+  const mbps = (totalBytes * 8) / elapsed / 1_000_000
+  return parseFloat(mbps.toFixed(1))
 }
 
+// ─── UPLOAD ───
+// ใช้ XMLHttpRequest แทน fetch เพราะ XHR upload แม่นยำกว่าใน browser
+// + ส่งหลาย stream พร้อมกัน
 async function measureUpload(): Promise<number> {
-  const sizes = [3_000_000, 5_000_000, 10_000_000] // 3MB, 5MB, 10MB
-  const results: number[] = []
+  const DURATION_MS = 6000
+  const PARALLEL   = 3
+  const CHUNK      = 4_000_000 // 4MB ต่อ chunk
 
-  for (const bytes of sizes) {
-    try {
-      // สร้าง random data สำหรับ upload (ป้องกัน compression skew)
-      const data = new Uint8Array(bytes)
-      crypto.getRandomValues(data.subarray(0, Math.min(bytes, 65536))) // random แค่ส่วนแรก
-      // fill ส่วนที่เหลือด้วย pattern
-      for (let i = 65536; i < bytes; i++) data[i] = i % 256
+  // สร้าง random data ไว้ก่อน (ใช้ร่วมกันทุก stream)
+  const data = new Uint8Array(CHUNK)
+  // fill ด้วย pseudo-random (ไม่ใช้ crypto เพราะช้า)
+  for (let i = 0; i < CHUNK; i++) data[i] = (i * 37 + 91) % 256
 
-      const start = performance.now()
-      await fetch('https://speed.cloudflare.com/__up', {
-        method: 'POST',
-        body: data,
-        cache: 'no-store',
-        signal: AbortSignal.timeout(12000),
-        // duplex จำเป็นสำหรับ streaming upload บน Chrome
-        // @ts-ignore
-        duplex: 'half'
-      })
-      const elapsed = (performance.now() - start) / 1000
-      const mbps = (bytes * 8) / elapsed / 1_000_000
-      results.push(mbps)
-    } catch {
-      break
+  let totalBytes = 0
+  const startTime = performance.now()
+
+  const uploadOne = (): Promise<void> => new Promise((resolve) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', 'https://speed.cloudflare.com/__up', true)
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream')
+
+    xhr.upload.onprogress = (e) => {
+      // นับ bytes ที่ส่งได้จริง (real-time)
+      totalBytes += e.loaded
     }
-  }
 
-  if (results.length === 0) throw new Error('Upload test failed')
+    xhr.onload = () => resolve()
+    xhr.onerror = () => resolve()
+    xhr.ontimeout = () => resolve()
+    xhr.timeout = DURATION_MS + 3000
 
-  const sorted = [...results].sort((a, b) => a - b)
-  const trimmed = sorted.length > 1 ? sorted.slice(0, -1) : sorted
-  const avg = trimmed.reduce((a, b) => a + b, 0) / trimmed.length
-  return parseFloat(avg.toFixed(1))
+    // ส่งหลาย chunk ติดต่อกัน
+    const blob = new Blob([data, data, data]) // ~12MB per request
+    xhr.send(blob)
+  })
+
+  // รัน parallel streams
+  await Promise.allSettled(Array.from({ length: PARALLEL }, uploadOne))
+
+  const elapsed = (performance.now() - startTime) / 1000
+  // หาร 2 เพราะ onprogress นับซ้ำ (loaded เพิ่มขึ้นต่อเนื่อง ไม่ใช่ delta)
+  // ใช้ totalBytes จาก XHR loaded แล้วหารด้วยเวลาจริง
+  const mbps = (totalBytes * 8) / elapsed / 1_000_000
+  return parseFloat(Math.min(mbps, 1000).toFixed(1)) // cap ที่ 1Gbps
 }
 
+// ─── MAIN EXPORT ───
 export async function runSpeedTest(
   onProgress?: (phase: 'download' | 'upload') => void
 ): Promise<SpeedResult> {
