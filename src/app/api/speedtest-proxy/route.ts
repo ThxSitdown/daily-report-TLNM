@@ -1,22 +1,46 @@
 // src/app/api/speedtest-proxy/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(request: NextRequest) {
+export const runtime = 'edge'
+
+// เพิ่ม body size limit สำหรับ upload
+export const maxDuration = 30
+
+export async function POST(req: NextRequest) {
   try {
-    if (!request.body) {
-      return NextResponse.json({ error: 'No body provided' }, { status: 400 })
-    }
+    const body = await req.arrayBuffer()
 
-    // ใน App Router เราสามารถอ่าน Stream ได้ทันที โดยไม่ต้องปิด bodyParser แล้วครับ
-    const reader = request.body.getReader()
-    while (true) {
-      const { done } = await reader.read()
-      if (done) break
-    }
+    const res = await fetch('https://speed.cloudflare.com/__up', {
+      method: 'POST',
+      body,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': String(body.byteLength),
+      },
+    })
 
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Upload proxy error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store',
+      },
+    })
+  } catch (e) {
+    return new NextResponse(JSON.stringify({ error: String(e) }), {
+      status: 502,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    })
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }
