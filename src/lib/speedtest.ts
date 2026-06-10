@@ -1,72 +1,106 @@
-// src/lib/speedtest.ts — client-side speed test
-// Download: fetch ไป Cloudflare โดยตรง (GET ไม่มี CORS)
-// Upload:   POST ผ่าน /api/speedtest-proxy ของเรา (แก้ CORS)
+// src/lib/speedtest.ts — mobile-safe client-side speed test
 
 export interface SpeedResult {
   download: number
   upload: number
 }
 
-// ─── DOWNLOAD ─── (parallel streams, fetch โดยตรงได้เพราะเป็น GET)
-async function measureDownload(): Promise<number> {
-  const PARALLEL = 4
-  const CHUNK    = 25_000_000 // 25MB per stream
-  let totalBytes = 0
-  const start = performance.now()
-
-  await Promise.allSettled(
-    Array.from({ length: PARALLEL }, async (_, i) => {
-      try {
-        const url = `https://speed.cloudflare.com/__down?bytes=${CHUNK}&r=${i}_${Date.now()}`
-        const res = await fetch(url, {
-          cache: 'no-store',
-          signal: AbortSignal.timeout(10000),
-        })
-        const buf = await res.arrayBuffer()
-        totalBytes += buf.byteLength
-      } catch { /* stream ล้มเหลว ข้ามไป */ }
-    })
-  )
-
-  const elapsed = (performance.now() - start) / 1000
-  if (elapsed < 0.1 || totalBytes === 0) throw new Error('Download failed')
-  return parseFloat(((totalBytes * 8) / elapsed / 1_000_000).toFixed(1))
+// AbortController timeout — รองรับ iOS Safari (ไม่ใช้ AbortSignal.timeout)
+function timeoutSignal(ms: number): AbortSignal {
+  const ctrl = new AbortController()
+  setTimeout(() => ctrl.abort(), ms)
+  return ctrl.signal
 }
 
-// ─── UPLOAD ─── (ผ่าน proxy /api/speedtest-proxy เพื่อแก้ CORS)
-// ใช้ fetch + ReadableStream เพื่อวัดเวลาที่แน่นอน
-async function measureUpload(): Promise<number> {
-  const PARALLEL  = 3
-  const CHUNK     = 8_000_000 // 8MB per request
+// ─── DOWNLOAD ───
+// มือถือ: ลด parallel และขนาด chunk ให้เล็กลง
+async function measureDownload(): Promise<number> {
+  // ตรวจว่าเป็น mobile หรือเปล่า
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+  const PARALLEL = isMobile ? 2 : 4
+  const CHUNK    = isMobile ? 5_000_000 : 20_000_000 // 5MB หรือ 20MB
 
-  // สร้าง data ที่ไม่ compressible
+  const results: number[] = []
+
+  // รัน sequential rounds แทน parallel เดียวทั้งหมด (เสถียรกว่าบน mobile)
+  for (let round = 0; round < 2; round++) {
+    let roundBytes = 0
+    const roundStart = performance.now()
+
+    await Promise.allSettled(
+      Array.from({ length: PARALLEL }, async (_, i) => {
+        try {
+          const url = `https://speed.cloudflare.com/__down?bytes=${CHUNK}&r=${round}_${i}_${Date.now()}`
+          const res = await fetch(url, {
+            cache: 'no-store',
+            signal: timeoutSignal(12000),
+          })
+          const buf = await res.arrayBuffer()
+          roundBytes += buf.byteLength
+        } catch { /* ข้าม */ }
+      })
+    )
+
+    const elapsed = (performance.now() - roundStart) / 1000
+    if (elapsed > 0.5 && roundBytes > 0) {
+      results.push((roundBytes * 8) / elapsed / 1_000_000)
+    }
+  }
+
+  if (results.length === 0) throw new Error('Download failed')
+
+  // เฉลี่ยทุก round
+  const avg = results.reduce((a, b) => a + b, 0) / results.length
+  return parseFloat(avg.toFixed(1))
+}
+
+// ─── UPLOAD ───
+// ใช้ fetch แทน XHR — รองรับดีกว่าบน iOS
+// ส่งผ่าน proxy /api/speedtest-proxy เพื่อแก้ CORS
+async function measureUpload(): Promise<number> {
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+  const PARALLEL = isMobile ? 2 : 3
+  const CHUNK    = isMobile ? 2_000_000 : 6_000_000 // 2MB หรือ 6MB
+
+  // สร้าง data ครั้งเดียว reuse
   const data = new Uint8Array(CHUNK)
   for (let i = 0; i < CHUNK; i++) data[i] = (i * 37 ^ 0xA5) & 0xFF
 
-  let totalBytes = 0
-  const start = performance.now()
+  const results: number[] = []
 
-  await Promise.allSettled(
-    Array.from({ length: PARALLEL }, async () => {
-      try {
-        const t0 = performance.now()
-        await fetch('/api/speedtest-proxy', {
-          method: 'POST',
-          body: data,
-          headers: { 'Content-Type': 'application/octet-stream' },
-          cache: 'no-store',
-          signal: AbortSignal.timeout(12000),
-        })
-        const took = performance.now() - t0
-        // นับ bytes ก็ต่อเมื่อ request สำเร็จ
-        if (took > 100) totalBytes += CHUNK
-      } catch { /* ล้มเหลว ข้ามไป */ }
-    })
-  )
+  for (let round = 0; round < 2; round++) {
+    let roundBytes = 0
+    const roundStart = performance.now()
 
-  const elapsed = (performance.now() - start) / 1000
-  if (elapsed < 0.1 || totalBytes === 0) throw new Error('Upload failed')
-  return parseFloat(((totalBytes * 8) / elapsed / 1_000_000).toFixed(1))
+    await Promise.allSettled(
+      Array.from({ length: PARALLEL }, async () => {
+        try {
+          const t0 = performance.now()
+          const res = await fetch('/api/speedtest-proxy', {
+            method: 'POST',
+            body: data.slice(), // slice เพื่อป้องกัน detached buffer
+            headers: { 'Content-Type': 'application/octet-stream' },
+            cache: 'no-store',
+            signal: timeoutSignal(15000),
+          })
+          if (res.ok || res.status === 200) {
+            const took = performance.now() - t0
+            if (took > 200) roundBytes += CHUNK
+          }
+        } catch { /* ข้าม */ }
+      })
+    )
+
+    const elapsed = (performance.now() - roundStart) / 1000
+    if (elapsed > 0.5 && roundBytes > 0) {
+      results.push((roundBytes * 8) / elapsed / 1_000_000)
+    }
+  }
+
+  if (results.length === 0) throw new Error('Upload failed')
+
+  const avg = results.reduce((a, b) => a + b, 0) / results.length
+  return parseFloat(avg.toFixed(1))
 }
 
 // ─── MAIN ───
