@@ -1,24 +1,16 @@
 // src/app/api/speedtest-proxy/route.ts
+// รับ upload data แล้ว discard ทันที — ไม่ forward ไปที่ไหน
+// วัด: pure upload speed จาก client → Vercel edge
+// ข้อดี: ลด 1 hop (ไม่ต้องรอ Vercel → Cloudflare), ลด latency, แม่นยำขึ้น
+
 import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'edge'
-
-// เพิ่ม body size limit สำหรับ upload
 export const maxDuration = 30
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.arrayBuffer()
-
-    const res = await fetch('https://speed.cloudflare.com/__up', {
-      method: 'POST',
-      body,
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': String(body.byteLength),
-      },
-    })
-
+    await req.arrayBuffer()  // consume และ discard body
     return new NextResponse(null, {
       status: 200,
       headers: {
@@ -26,11 +18,8 @@ export async function POST(req: NextRequest) {
         'Cache-Control': 'no-store',
       },
     })
-  } catch (e) {
-    return new NextResponse(JSON.stringify({ error: String(e) }), {
-      status: 502,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-    })
+  } catch {
+    return new NextResponse(null, { status: 500 })
   }
 }
 

@@ -1,5 +1,7 @@
 // src/lib/speedtest.ts
-// แก้ mobile: skip TCP slow-start, เพิ่ม streams, warm-up ที่ดีขึ้น
+// Download: Sequential small chunks per stream + arrayBuffer()
+//           iOS Safari throttles ReadableStream → ใช้ arrayBuffer() แทน
+// Upload:   POST to /api/speedtest-proxy (discard-only, ไม่ forward ไป Cloudflare)
 
 export interface SpeedResult {
   download: number
@@ -17,97 +19,77 @@ function abortAfter(ms: number): AbortController {
 }
 
 // ─── DOWNLOAD ───
-// วิธี: วัดเฉพาะ "steady state" — ข้ามช่วง slow-start แรก (SKIP_MS)
-// ทำให้ค่าที่ได้ตรงกับความเร็วจริงที่ TCP เต็มสปีดแล้ว
+// หลักการใหม่: แต่ละ stream ดาวน์โหลด chunk เล็กๆ ซ้ำๆ แทนไฟล์ใหญ่ก้อนเดียว
+// ข้อดี: arrayBuffer() ทำงานดีบน iOS, ข้ามผล slow-start, วัดได้แม่นยำกว่า
 async function measureDownload(): Promise<number> {
   const mobile   = isMobile()
-  const STREAMS  = mobile ? 4 : 4      // เพิ่ม mobile จาก 2 → 4
-  const TOTAL_MS = 12000               // วัดนาน 12 วินาที
-  const SKIP_MS  = mobile ? 4000 : 3000 // ข้ามช่วง slow-start
+  const STREAMS  = mobile ? 3 : 4
+  const CHUNK    = mobile ? 2_000_000 : 5_000_000  // 2MB / 5MB ต่อ request
+  const TOTAL_MS = 12000    // หน้าต่างวัดทั้งหมด 12 วินาที
+  const SKIP_MS  = 3000     // ข้ามช่วง slow-start 3 วินาทีแรก
 
-  // Warm-up: ดาวน์โหลด 2MB ก่อนเพื่อ fill TCP buffer
+  // warm-up: establish HTTP/2 connection ก่อน
   try {
     const r = await fetch(
-      `https://speed.cloudflare.com/__down?bytes=2000000&r=wu${Date.now()}`,
+      `https://speed.cloudflare.com/__down?bytes=1000000&r=wu${Date.now()}`,
       { cache: 'no-store', signal: abortAfter(6000).signal }
     )
-    if (r.body) {
-      const rd = r.body.getReader()
-      // อ่านจนหมด เพื่อ establish connection จริงๆ
-      while (!(await rd.read()).done) {}
-    } else {
-      await r.arrayBuffer()
-    }
+    await r.arrayBuffer()
   } catch { /* ok */ }
 
-  const abort      = abortAfter(TOTAL_MS)
   const t0         = performance.now()
-  let stableT0     = -1      // เวลาที่เริ่มนับจริง (หลัง skip)
-  let stableBytes  = 0       // bytes ที่นับเฉพาะ stable phase
+  let stableT      = -1   // เวลาที่เริ่มนับจริง (หลัง slow-start)
+  let stableBytes  = 0    // bytes ที่วัดได้ใน stable phase
 
   await Promise.allSettled(
-    Array.from({ length: STREAMS }, async (_, i) => {
-      try {
-        const res = await fetch(
-          `https://speed.cloudflare.com/__down?bytes=500000000&r=${i}_${Date.now()}`,
-          { cache: 'no-store', signal: abort.signal }
-        )
-
-        if (!res.body) {
-          // fallback สำหรับ browser เก่า
-          const buf = await res.arrayBuffer()
-          stableBytes += buf.byteLength
-          return
-        }
-
-        const reader = res.body.getReader()
+    Array.from({ length: STREAMS }, async (_, si) => {
+      let n = 0
+      // วนซ้ำจนครบ TOTAL_MS
+      while (performance.now() - t0 < TOTAL_MS) {
         try {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done || !value) break
-            const now = performance.now()
-            // เริ่มนับหลัง SKIP_MS ผ่านไป (TCP ถึง full speed แล้ว)
-            if (now - t0 >= SKIP_MS) {
-              if (stableT0 < 0) stableT0 = now  // บันทึกเวลาเริ่มนับครั้งแรก
-              stableBytes += value.byteLength
-            }
+          const res = await fetch(
+            `https://speed.cloudflare.com/__down?bytes=${CHUNK}&r=${si}_${n++}_${Date.now()}`,
+            { cache: 'no-store', signal: abortAfter(10000).signal }
+          )
+          const buf = await res.arrayBuffer()
+          const now = performance.now()
+
+          // นับเฉพาะหลัง slow-start ผ่านไปแล้ว
+          if (now - t0 >= SKIP_MS) {
+            if (stableT < 0) stableT = now  // บันทึกจุดเริ่มต้นนับ
+            stableBytes += buf.byteLength
           }
-        } catch {
-          // AbortError ปกติเมื่อหมดเวลา
-        } finally {
-          reader.releaseLock()
-        }
-      } catch { /* stream failed */ }
+        } catch { break }
+      }
     })
   )
 
-  // elapsed = เวลาที่นับจริง (ไม่รวม slow-start)
-  const elapsed = stableT0 > 0
-    ? (performance.now() - stableT0) / 1000
+  const elapsed = stableT > 0
+    ? (performance.now() - stableT) / 1000
     : (TOTAL_MS - SKIP_MS) / 1000
 
-  if (stableBytes < 50_000 || elapsed < 1) throw new Error('Download failed')
+  if (stableBytes < 100_000 || elapsed < 0.5) throw new Error('Download failed')
   return parseFloat(((stableBytes * 8) / elapsed / 1_000_000).toFixed(1))
 }
 
 // ─── UPLOAD ───
-// วิธี: warm-up แยก (ไม่นับ) แล้วจึงเริ่มจับเวลา
-// Mobile: chunk เล็กลงเพื่อไม่ติด Vercel limit, แต่ rounds มากขึ้น
+// ส่ง POST ไปที่ /api/speedtest-proxy ซึ่งรับแล้ว discard ทันที
+// ไม่ forward ไป Cloudflare → ลด latency, วัด upload ถึง Vercel edge โดยตรง
 async function measureUpload(): Promise<number> {
   const mobile  = isMobile()
   const STREAMS = 3
-  const CHUNK   = mobile ? 2_000_000 : 3_500_000  // 2MB / 3.5MB
-  const ROUNDS  = mobile ? 6 : 5                  // mobile rounds มากขึ้น
+  const CHUNK   = 3_000_000  // 3MB ต่อ request (< Vercel 4.5MB limit)
+  const ROUNDS  = mobile ? 6 : 5
 
-  // สร้าง non-compressible payload
+  // สร้าง payload ที่ไม่ compress
   const payload = new Uint8Array(CHUNK)
   for (let i = 0; i < CHUNK; i++) payload[i] = (i * 1664525 + 1013904223) & 0xFF
 
-  // Warm-up upload (ไม่นับใน timing)
+  // warm-up (ไม่นับเวลา)
   try {
     await fetch('/api/speedtest-proxy', {
       method: 'POST',
-      body: new Uint8Array(300_000),
+      body: new Uint8Array(200_000),
       headers: { 'Content-Type': 'application/octet-stream' },
       cache: 'no-store',
       signal: abortAfter(6000).signal
@@ -142,7 +124,6 @@ async function measureUpload(): Promise<number> {
   return parseFloat(((totalBytes * 8) / elapsed / 1_000_000).toFixed(1))
 }
 
-// ─── EXPORT ───
 export async function runSpeedTest(
   onProgress?: (phase: 'download' | 'upload') => void
 ): Promise<SpeedResult> {
