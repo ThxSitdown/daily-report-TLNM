@@ -1,0 +1,48 @@
+.card { border: 1.5px solid #E5E7EB; border-radius: 9px; overflow: hidden; background: #fff; }
+.head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 11px; background: #F8F8F8; border-bottom: 1px solid #E5E7EB;
+}
+.loc { font-size: 13px; font-weight: 600; color: #111; display: flex; align-items: center; gap: 6px; }
+.loc i { color: #C8102E; font-size: 14px; }
+.btn {
+  padding: 4px 10px; font-size: 12px; font-weight: 600; border-radius: 5px;
+  border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-family: inherit;
+}
+.btnIdle  { background: #C8102E; color: #fff; }
+.btnIdle:hover { background: #9B0B22; }
+.btnBusy  { background: #F3F4F6; color: #6B7280; cursor: not-allowed; }
+.btnDone  { background: #D1FAE5; color: #059669; }
+.btnError { background: #FEE2E2; color: #DC2626; }
+.spinner {
+  width: 11px; height: 11px; border: 2px solid currentColor;
+  border-top-color: transparent; border-radius: 50%;
+  animation: spin 0.7s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress { height: 3px; background: #E5E7EB; overflow: hidden; }
+.bar { height: 100%; background: #C8102E; animation: prog 1.4s ease-in-out infinite; width: 55%; }
+.barUp { background: #7C3AED; }
+@keyframes prog { 0%{transform:translateX(-120%)} 100%{transform:translateX(240%)} }
+.body { padding: 10px 11px; display: flex; flex-direction: column; gap: 8px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fld { display: flex; flex-direction: column; gap: 3px; }
+.mini {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+  display: flex; align-items: center; gap: 3px;
+}
+.dl { color: #1A56A0; }
+.ul { color: #6B21A8; }
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px; font-weight: 500; text-align: center; padding: 7px;
+  border: 1.5px solid #E5E7EB; border-radius: 7px; background: #fff; width: 100%;
+  outline: none;
+}
+.mono:focus { border-color: #C8102E; box-shadow: 0 0 0 3px rgba(200,16,46,0.08); }
+.rmk {
+  font-size: 13px; padding: 7px 10px; border: 1.5px solid #E5E7EB;
+  border-radius: 7px; width: 100%; outline: none; font-family: inherit;
+}
+.rmk:focus { border-color: #C8102E; }

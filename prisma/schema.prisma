@@ -8,26 +8,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model DailyReport {
+model User {
   id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  role      String   @default("user")
   createdAt DateTime @default(now())
-  date      DateTime @default(now())
+  drafts    Draft[]
+  @@map("users")
+}
 
-  // Network Speed Tests
-  networkTests NetworkTest[]
+model Draft {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hotelType String
+  data      Json
+  updatedAt DateTime @updatedAt
+  @@unique([userId, hotelType])
+  @@map("drafts")
+}
 
-  // Server Room
-  tempIn    Float?
-  tempOut   Float?
-  humidity  Float?
+model DailyReport {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  hotelType        String   @default("travelodge")
+  tempIn           Float?
+  tempOut          Float?
+  humidity         Float?
   serverRoomRemark String?
-
-  // UPS Checks
-  upsChecks UpsCheck[]
-
-  // Room Checks
-  roomChecks RoomCheck[]
-
+  networkTests     NetworkTest[]
+  upsChecks        UpsCheck[]
+  roomChecks       RoomCheck[]
   @@map("daily_reports")
 }
 
@@ -35,23 +47,21 @@ model NetworkTest {
   id           String      @id @default(cuid())
   reportId     String
   report       DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  location     String      // cafe6t6, thelodge, lobby, swimgym
+  location     String
   downloadMbps Float?
   uploadMbps   Float?
   remark       String?
-
   @@map("network_tests")
 }
 
 model UpsCheck {
-  id         String      @id @default(cuid())
-  reportId   String
-  report     DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  building   String      // T1-T7 (no T5)
-  backupMin  Int?
-  tempC      Float?
-  remark     String?
-
+  id        String      @id @default(cuid())
+  reportId  String
+  report    DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  building  String
+  backupMin Int?
+  tempC     Float?
+  remark    String?
   @@map("ups_checks")
 }
 
@@ -65,6 +75,5 @@ model RoomCheck {
   internetDown Float?
   internetUp   Float?
   remark       String?
-
   @@map("room_checks")
 }
