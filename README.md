@@ -1,120 +1,76 @@
-# 📋 Daily Report System
+# IT Daily Report System
 
-ระบบ Daily Report สำหรับ IT Operations — รองรับ Network Speed Test, UPS Check, Room Check และ Server Room Monitoring
+ระบบ Daily Report สำหรับ 3 โรงแรม: Travelodge Nimman, Eastin Tan, U Nimman
 
 ## Stack
-- **Frontend/Backend**: Next.js 14 (App Router)
-- **Database**: PostgreSQL บน Railway
-- **Deploy**: Vercel
-- **Speed Test**: Cloudflare Speed (open source, ไม่ต้องใช้ API Key)
+Next.js 14 · PostgreSQL (Railway) · Vercel · JWT Auth · Prisma
 
 ---
 
-## 🚀 วิธี Deploy
+## 🚀 Deploy Steps
 
-### 1. สร้าง Database บน Railway
+### 1. Railway — สร้าง PostgreSQL
+New Project → Add PostgreSQL → Copy `DATABASE_URL`
 
-1. ไปที่ [railway.app](https://railway.app) → New Project → PostgreSQL
-2. เข้าไปที่ PostgreSQL service → **Connect** tab
-3. Copy **DATABASE_URL** (รูปแบบ: `postgresql://...`)
+### 2. Vercel — ตั้ง Environment Variables
+```
+DATABASE_URL = postgresql://...
+JWT_SECRET   = your-random-secret-string-min-32-chars
+```
 
-### 2. Deploy บน Vercel
+### 3. Deploy
+Push to GitHub → Vercel auto-deploy
 
-1. Push โค้ดขึ้น GitHub
-2. ไปที่ [vercel.com](https://vercel.com) → New Project → Import repository
-3. เพิ่ม Environment Variable:
-   ```
-   DATABASE_URL = postgresql://USER:PASSWORD@HOST:PORT/DATABASE
-   ```
-4. กด **Deploy**
+### 4. สร้าง Admin (ทำครั้งแรกครั้งเดียว)
+หลัง deploy เสร็จ เปิด browser ไปที่:
+```
+https://your-app.vercel.app/api/seed
+```
+จะสร้าง admin / Tlcmn@1122 ให้อัตโนมัติ
 
-### 3. Run Database Migration
-
-หลัง Deploy สำเร็จ ให้รัน migration ผ่าน Vercel CLI หรือ Railway Shell:
-
+### 5. Database Migration
 ```bash
 npx prisma db push
 ```
 
-หรือใช้ Railway Shell:
-```bash
-# ใน Railway project terminal
-npx prisma migrate deploy
-```
+---
+
+## 👤 Default Account
+| Username | Password    | Role  |
+|----------|-------------|-------|
+| admin    | Tlcmn@1122  | Admin |
+
+Admin เป็นคนเพิ่ม User เท่านั้น ผ่านหน้า /admin
 
 ---
 
-## 💻 Local Development
-
-```bash
-# 1. Clone และติดตั้ง dependencies
-npm install
-
-# 2. สร้างไฟล์ .env.local
-cp .env.example .env.local
-# แก้ DATABASE_URL ให้ถูกต้อง
-
-# 3. Push schema ไป database
-npx prisma db push
-
-# 4. รัน dev server
-npm run dev
-```
-
-เปิด http://localhost:3000
+## ✨ Features
+- 🔐 Login / JWT Cookie Session (7 วัน)
+- 🏨 เลือกโรงแรม: Travelodge / Eastin+U Nimman
+- 📶 Network Speed Test (client-side, Cloudflare)
+- 💾 Auto-save Draft ทุก 2 วินาที → เก็บใน PostgreSQL
+- 🔄 Cross-device: เปิดคอมหรือมือถือ ข้อมูลยังอยู่
+- 📋 Copy report text ได้ทันที
+- 🗑️ Clear data พร้อม confirm modal
 
 ---
 
-## 📁 โครงสร้างโปรเจกต์
-
-```
-src/
-├── app/
-│   ├── api/
-│   │   ├── speedtest/route.ts   # Speed test endpoint (Cloudflare)
-│   │   └── reports/route.ts     # Save/Get reports (PostgreSQL)
-│   ├── page.tsx                 # Main form page
-│   ├── page.module.css          # Styles
-│   ├── layout.tsx
-│   └── globals.css
-└── lib/
-    ├── prisma.ts                # Prisma client
-    └── types.ts                 # TypeScript types
-
-prisma/
-└── schema.prisma               # Database schema
-```
+## 🗂️ Routes
+| Path | ใช้ทำอะไร |
+|------|-----------|
+| /login | หน้า Login |
+| /select | เลือกโรงแรม |
+| /travelodge | Daily Report ของ Travelodge |
+| /eastin-u | Daily Report ของ Eastin + U Nimman |
+| /admin | จัดการ User (Admin เท่านั้น) |
+| /api/seed | สร้าง admin ครั้งแรก |
 
 ---
 
-## 🌐 Speed Test
-
-ใช้ **Cloudflare Speed** endpoint ซึ่งเป็น open source และไม่มีค่าใช้จ่าย:
-- Download: `https://speed.cloudflare.com/__down`
-- Upload: `https://speed.cloudflare.com/__up`
-
-ทำการทดสอบจาก server (Vercel Edge) ดังนั้นความเร็วที่ได้คือความเร็วจาก server ไป Cloudflare
-หากต้องการทดสอบจาก client จริง ให้ย้าย speed test logic มาทำงานใน browser
-
----
-
-## 🔧 Self-hosted Speed Test (Optional)
-
-ถ้าต้องการ speed test server ในเครือข่ายภายใน ให้ติดตั้ง [LibreSpeed](https://github.com/librespeed/speedtest) ด้วย Docker:
-
-```bash
-docker run -d -p 8080:80 adolfintel/speedtest
+## 🔄 Draft Flow
 ```
-
-แล้วแก้ไข `src/app/api/speedtest/route.ts` ให้ชี้ไปที่ `http://YOUR_SERVER:8080`
-
----
-
-## 📊 Database Schema
-
-| Table | Fields |
-|-------|--------|
-| `daily_reports` | id, date, tempIn, tempOut, humidity, remark |
-| `network_tests` | location, downloadMbps, uploadMbps, remark |
-| `ups_checks` | building, backupMin, tempC, remark |
-| `room_checks` | roomNumber, tvOk, telOk, internetDown, internetUp, remark |
+กรอกข้อมูล → debounce 2s → POST /api/drafts → PostgreSQL
+เปิดหน้าใหม่ → GET /api/drafts → โหลดข้อมูลเดิม
+กดส่ง Report → POST /api/reports → บันทึกถาวร
+กด Clear → DELETE /api/drafts + reset form
+```
