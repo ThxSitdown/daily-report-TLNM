@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { getSession } from '@/lib/auth'
 
-export async function GET() {
-  const s = await getSession()
+export async function GET(req: NextRequest) {
+  const s = getSession(req)
   if (!s || s.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const users = await prisma.user.findMany({
     select: { id: true, username: true, role: true, createdAt: true },
@@ -14,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const s = await getSession()
+  const s = getSession(req)
   if (!s || s.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { username, password } = await req.json()
   if (!username || !password) return NextResponse.json({ error: 'กรุณากรอกข้อมูลให้ครบ' }, { status: 400 })
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const s = await getSession()
+  const s = getSession(req)
   if (!s || s.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { id } = await req.json()
   if (id === s.userId) return NextResponse.json({ error: 'ไม่สามารถลบตัวเองได้' }, { status: 400 })
