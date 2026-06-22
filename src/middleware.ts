@@ -1,32 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyToken } from '@/lib/auth'
 
-const PUBLIC = ['/login', '/api/auth/login', '/api/seed']
+// Edge Runtime ไม่รองรับ jsonwebtoken (Node.js crypto)
+// แก้: เช็คแค่ว่า cookie มีอยู่และมีรูปแบบ JWT (3 ส่วน) เท่านั้น
+// การ verify จริงทำใน API routes ที่ใช้ Node.js runtime
+
+const PUBLIC_PREFIXES = ['/login', '/api/auth/', '/api/seed', '/_next', '/favicon']
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // อนุญาต public routes และ static files
-  if (
-    PUBLIC.some(p => pathname.startsWith(p)) ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon')
-  ) return NextResponse.next()
+  if (PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) {
+    return NextResponse.next()
+  }
 
-  // ตรวจ token
   const token = req.cookies.get('auth_token')?.value
+
+  // ไม่มี cookie → ไป login
   if (!token) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  try {
-    verifyToken(token)
-    return NextResponse.next()
-  } catch {
+  // เช็ครูปแบบ JWT คร่าวๆ (header.payload.signature)
+  if (token.split('.').length !== 3) {
     const res = NextResponse.redirect(new URL('/login', req.url))
     res.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
     return res
   }
+
+  return NextResponse.next()
 }
 
 export const config = {
