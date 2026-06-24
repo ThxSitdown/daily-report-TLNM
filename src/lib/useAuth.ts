@@ -12,11 +12,10 @@ export function useAuth(opts?: { requireAdmin?: boolean }) {
   useEffect(() => {
     fetch('/api/auth/me')
       .then(r => r.json())
-      .then(data => {
-        if (data.error) { router.replace('/login'); return }
-        if (opts?.requireAdmin && data.role !== 'admin') { router.replace('/select'); return }
-        setUser(data)
-        setLoading(false)
+      .then(d => {
+        if (d.error) { router.replace('/login'); return }
+        if (opts?.requireAdmin && d.role !== 'admin') { router.replace('/select'); return }
+        setUser(d); setLoading(false)
       })
       .catch(() => router.replace('/login'))
   }, [])

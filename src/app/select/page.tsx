@@ -1,84 +1,87 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/useAuth'
-import styles from './page.module.css'
+
+const F = 'Prompt, sans-serif'
+const btn = (bg: string): React.CSSProperties => ({
+  width:'100%', background:'none', border:'none', padding:0, cursor:'pointer', borderRadius:14, overflow:'hidden', textAlign:'left'
+})
 
 export default function SelectPage() {
   const { user, loading, logout } = useAuth()
   const router = useRouter()
 
   if (loading) return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#111', color:'#fff' }}>
-      <span>กำลังโหลด...</span>
-    </div>
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#111', color:'#6B7280', fontFamily:F }}>กำลังโหลด...</div>
   )
 
   return (
-    <div className={styles.page}>
+    <div style={{ minHeight:'100vh', background:'#111', fontFamily:F }}>
       {/* Top bar */}
-      <div className={styles.topBar}>
-        <span className={styles.topTitle}>
-          <i className="bi bi-clipboard2-check"/> Daily Report System
+      <div style={{ background:'#000', borderBottom:'3px solid #C8102E', padding:'0 16px', height:52, display:'flex', alignItems:'center', gap:12 }}>
+        <span style={{ flex:1, fontSize:14, fontWeight:600, color:'#fff', display:'flex', alignItems:'center', gap:7 }}>
+          <i className="bi bi-clipboard2-check" style={{ color:'#C8102E', fontSize:16 }}/> Daily Report System
         </span>
-        <div className={styles.topRight}>
-          {user?.role === 'admin' && (
-            <button className={styles.adminBtn} onClick={() => router.push('/admin')}>
-              <i className="bi bi-shield-lock"/> Admin
-            </button>
-          )}
-          <span className={styles.userChip}>
-            <i className="bi bi-person-circle"/> {user?.username}
-          </span>
-          <button className={styles.logoutBtn} onClick={logout}>
-            <i className="bi bi-box-arrow-right"/> ออก
+        {user?.role === 'admin' && (
+          <button onClick={() => router.push('/admin')} style={{ padding:'4px 12px', background:'rgba(250,204,21,0.12)', color:'#FACC15', border:'1px solid rgba(250,204,21,0.25)', borderRadius:6, fontSize:12, fontWeight:600, display:'flex', alignItems:'center', gap:5, cursor:'pointer', fontFamily:F }}>
+            <i className="bi bi-shield-lock"/> Admin
           </button>
-        </div>
+        )}
+        <span style={{ fontSize:12, color:'#9CA3AF', display:'flex', alignItems:'center', gap:5 }}>
+          <i className="bi bi-person-circle"/>{user?.username}
+        </span>
+        <button onClick={logout} style={{ padding:'4px 10px', background:'rgba(200,16,46,0.12)', color:'#F87171', border:'1px solid rgba(200,16,46,0.2)', borderRadius:6, fontSize:12, display:'flex', alignItems:'center', gap:5, cursor:'pointer', fontFamily:F }}>
+          <i className="bi bi-box-arrow-right"/> ออก
+        </button>
       </div>
 
-      <div className={styles.body}>
-        <div className={styles.greeting}>
-          <h1 className={styles.title}>เลือกโรงแรม</h1>
-          <p className={styles.sub}>กรุณาเลือกโรงแรมที่ต้องการทำ Daily Report</p>
+      <div style={{ maxWidth:700, margin:'0 auto', padding:'40px 16px' }}>
+        <div style={{ textAlign:'center', marginBottom:36 }}>
+          <h1 style={{ fontSize:26, fontWeight:700, color:'#fff', marginBottom:8 }}>เลือกโรงแรม</h1>
+          <p style={{ fontSize:14, color:'#6B7280' }}>กรุณาเลือกโรงแรมที่ต้องการทำ Daily Report</p>
         </div>
-
-        <div className={styles.cards}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
           {/* Travelodge */}
-          <button className={styles.hotelCard} onClick={() => router.push('/travelodge')}>
-            <div className={styles.cardBg} style={{ background: 'linear-gradient(135deg,#1E3A5F,#C8102E)' }}>
-              <div className={styles.cardOverlay}/>
-              <div className={styles.cardContent}>
-                <div className={styles.hotelIcon}>
+          <button style={btn('')} onClick={() => router.push('/travelodge')}>
+            <div style={{ background:'linear-gradient(135deg,#1E3A5F,#C8102E)', padding:'22px 20px 14px', position:'relative', overflow:'hidden', borderRadius:14, transition:'transform 0.15s, box-shadow 0.15s' }}
+              onMouseEnter={e=>{(e.currentTarget as HTMLDivElement).style.transform='translateY(-3px)';(e.currentTarget as HTMLDivElement).style.boxShadow='0 12px 36px rgba(0,0,0,0.5)'}}
+              onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.transform='';(e.currentTarget as HTMLDivElement).style.boxShadow=''}}>
+              <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.2)' }}/>
+              <div style={{ position:'relative', display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
+                <div style={{ width:48, height:48, background:'rgba(200,16,46,0.35)', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, color:'#fff', border:'1px solid rgba(255,255,255,0.15)', flexShrink:0 }}>
                   <i className="bi bi-building-fill"/>
                 </div>
-                <div>
-                  <div className={styles.hotelName}>Travelodge Nimman</div>
-                  <div className={styles.hotelDesc}>Chiang Mai</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>Travelodge Nimman</div>
+                  <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)' }}>Chiang Mai</div>
                 </div>
-                <div className={styles.cardArrow}>
-                  <i className="bi bi-arrow-right-circle-fill"/>
-                </div>
+                <i className="bi bi-arrow-right-circle-fill" style={{ fontSize:26, color:'rgba(255,255,255,0.6)' }}/>
               </div>
-              <div className={styles.cardBadge}>413 Rooms · 4 Test Points</div>
+              <span style={{ position:'relative', fontSize:11, color:'rgba(255,255,255,0.6)', background:'rgba(0,0,0,0.25)', padding:'4px 10px', borderRadius:20 }}>
+                413 Rooms · Cafe 6T6, The Lodge, Lobby, Swim&Gym
+              </span>
             </div>
           </button>
 
           {/* Eastin + U Nimman */}
-          <button className={styles.hotelCard} onClick={() => router.push('/eastin-u')}>
-            <div className={styles.cardBg} style={{ background: 'linear-gradient(135deg,#0D4A3A,#0891B2)' }}>
-              <div className={styles.cardOverlay}/>
-              <div className={styles.cardContent}>
-                <div className={styles.hotelIcon} style={{ background:'rgba(8,145,178,0.3)' }}>
+          <button style={btn('')} onClick={() => router.push('/eastin-u')}>
+            <div style={{ background:'linear-gradient(135deg,#0D4A3A,#0891B2)', padding:'22px 20px 14px', position:'relative', overflow:'hidden', borderRadius:14, transition:'transform 0.15s, box-shadow 0.15s' }}
+              onMouseEnter={e=>{(e.currentTarget as HTMLDivElement).style.transform='translateY(-3px)';(e.currentTarget as HTMLDivElement).style.boxShadow='0 12px 36px rgba(0,0,0,0.5)'}}
+              onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.transform='';(e.currentTarget as HTMLDivElement).style.boxShadow=''}}>
+              <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.2)' }}/>
+              <div style={{ position:'relative', display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
+                <div style={{ width:48, height:48, background:'rgba(8,145,178,0.35)', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, color:'#fff', border:'1px solid rgba(255,255,255,0.15)', flexShrink:0 }}>
                   <i className="bi bi-buildings-fill"/>
                 </div>
-                <div>
-                  <div className={styles.hotelName}>Eastin Tan & U Nimman</div>
-                  <div className={styles.hotelDesc}>Chiang Mai</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>Eastin Tan & U Nimman</div>
+                  <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)' }}>Chiang Mai</div>
                 </div>
-                <div className={styles.cardArrow}>
-                  <i className="bi bi-arrow-right-circle-fill"/>
-                </div>
+                <i className="bi bi-arrow-right-circle-fill" style={{ fontSize:26, color:'rgba(255,255,255,0.6)' }}/>
               </div>
-              <div className={styles.cardBadge}>2 Hotels · 7 Test Points</div>
+              <span style={{ position:'relative', fontSize:11, color:'rgba(255,255,255,0.6)', background:'rgba(0,0,0,0.25)', padding:'4px 10px', borderRadius:20 }}>
+                2 Hotels · Eastin: 4 จุด · U Nimman: 3 จุด
+              </span>
             </div>
           </button>
         </div>
