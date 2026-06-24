@@ -1,66 +1,84 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 model User {
-  id String @id @default(cuid())
-  username String @unique
-  password String
-  role String @default("user")
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  role      String   @default("user")
   createdAt DateTime @default(now())
-  drafts Draft[]
+  drafts    Draft[]
+
   @@map("users")
 }
+
 model Draft {
-  id String @id @default(cuid())
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   hotelType String
-  data Json
+  data      Json
   updatedAt DateTime @updatedAt
+
   @@unique([userId, hotelType])
   @@map("drafts")
 }
+
 model DailyReport {
-  id String @id @default(cuid())
-  createdAt DateTime @default(now())
-  hotelType String @default("travelodge")
-  tempIn Float?
-  tempOut Float?
-  humidity Float?
+  id               String        @id @default(cuid())
+  createdAt        DateTime      @default(now())
+  hotelType        String        @default("travelodge")
+  tempIn           Float?
+  tempOut          Float?
+  humidity         Float?
   serverRoomRemark String?
-  networkTests NetworkTest[]
-  upsChecks UpsCheck[]
-  roomChecks RoomCheck[]
+  networkTests     NetworkTest[]
+  upsChecks        UpsCheck[]
+  roomChecks       RoomCheck[]
+
   @@map("daily_reports")
 }
+
 model NetworkTest {
-  id String @id @default(cuid())
-  reportId String
-  report DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  location String
+  id           String      @id @default(cuid())
+  reportId     String
+  report       DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  location     String
   downloadMbps Float?
-  uploadMbps Float?
-  remark String?
+  uploadMbps   Float?
+  remark       String?
+
   @@map("network_tests")
 }
+
 model UpsCheck {
-  id String @id @default(cuid())
-  reportId String
-  report DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  building String
+  id        String      @id @default(cuid())
+  reportId  String
+  report    DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  building  String
   backupMin Int?
-  tempC Float?
-  remark String?
+  tempC     Float?
+  remark    String?
+
   @@map("ups_checks")
 }
+
 model RoomCheck {
-  id String @id @default(cuid())
-  reportId String
-  report DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  roomNumber String
-  tvOk Boolean @default(false)
-  telOk Boolean @default(false)
+  id           String      @id @default(cuid())
+  reportId     String
+  report       DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  roomNumber   String
+  tvOk         Boolean     @default(false)
+  telOk        Boolean     @default(false)
   internetDown Float?
-  internetUp Float?
-  remark String?
+  internetUp   Float?
+  remark       String?
+
   @@map("room_checks")
 }
