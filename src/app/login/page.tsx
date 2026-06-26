@@ -25,9 +25,10 @@ export default function LoginPage() {
       backgroundImage:'radial-gradient(circle at 20% 50%, rgba(200,16,46,0.08) 0%, transparent 60%)' }}>
       <div style={{ background:'#1C1C1C', border:'1px solid #2A2A2A', borderRadius:16, padding:'40px 32px', width:'100%', maxWidth:380, boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
-          <div style={{ width:64, height:64, background:'rgba(200,16,46,0.12)', border:'2px solid rgba(200,16,46,0.3)', borderRadius:16, display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:14, fontSize:32 }}>
-            <i className="bi bi-building-fill" style={{ color:'#C8102E' }}/>
-          </div>
+          <img
+                    src="/images.png"
+                    style={{ width:160, height:'auto', marginBottom:14, display:'block', margin:'0 auto 14px' }}
+                  />
           <h1 style={{ fontSize:22, fontWeight:700, color:'#fff', fontFamily:'Prompt,sans-serif' }}>IT Daily Report</h1>
           <p style={{ fontSize:13, color:'#6B7280', marginTop:4, fontFamily:'Prompt,sans-serif' }}>Hotel Management System</p>
         </div>
