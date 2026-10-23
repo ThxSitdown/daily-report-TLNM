@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isAutoMeasured } from '@/lib/speedtest'
+
+// เก็บผลวัดพร้อม flag auto = ตัวเลขที่ส่งมายังตรงกับผลวัดจริงไหม
+const speedMeta = (down: any, up: any, meta: any) => meta ? { ...meta, auto: isAutoMeasured(String(down ?? ''), String(up ?? ''), meta) } : undefined
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,9 +15,9 @@ export async function POST(req: NextRequest) {
         tempOut: serverRoom?.tempOut ? parseFloat(serverRoom.tempOut) : null,
         humidity: serverRoom?.humidity ? parseFloat(serverRoom.humidity) : null,
         serverRoomRemark: serverRoom?.remark || null,
-        networkTests: { create: (networkTests||[]).map((n:any) => ({ location:n.location, downloadMbps:n.download?parseFloat(n.download):null, uploadMbps:n.upload?parseFloat(n.upload):null, remark:n.remark||null })) },
+        networkTests: { create: (networkTests||[]).map((n:any) => ({ location:n.location, downloadMbps:n.download?parseFloat(n.download):null, uploadMbps:n.upload?parseFloat(n.upload):null, remark:n.remark||null, speedMeta:speedMeta(n.download,n.upload,n.meta) })) },
         upsChecks: { create: (upsChecks||[]).map((u:any) => ({ building:u.building, backupMin:u.backupMin?parseInt(u.backupMin):null, tempC:u.tempC?parseFloat(u.tempC):null, remark:u.remark||null })) },
-        roomChecks: { create: (roomChecks||[]).map((r:any) => ({ roomNumber:r.roomNumber, tvOk:r.tvOk===true, telOk:r.telOk===true, internetDown:r.internetDown?parseFloat(r.internetDown):null, internetUp:r.internetUp?parseFloat(r.internetUp):null, remark:r.remark||null })) }
+        roomChecks: { create: (roomChecks||[]).map((r:any) => ({ roomNumber:r.roomNumber, tvOk:r.tvOk===true, telOk:r.telOk===true, internetDown:r.internetDown?parseFloat(r.internetDown):null, internetUp:r.internetUp?parseFloat(r.internetUp):null, remark:r.remark||null, speedMeta:speedMeta(r.internetDown,r.internetUp,r.internetMeta) })) }
       }
     })
     return NextResponse.json({ success: true, reportId: report.id })

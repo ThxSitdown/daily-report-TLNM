@@ -53,6 +53,7 @@ model NetworkTest {
   downloadMbps Float?
   uploadMbps   Float?
   remark       String?
+  speedMeta    Json? // ผลวัดอัตโนมัติ: เวลา, ping, jitter, server, ค่ายเน็ต, auto (ตรงกับค่าที่ส่งไหม)
 
   @@map("network_tests")
 }
@@ -79,6 +80,7 @@ model RoomCheck {
   internetDown Float?
   internetUp   Float?
   remark       String?
+  speedMeta    Json?
 
   @@map("room_checks")
 }

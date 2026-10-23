@@ -48,9 +48,7 @@ export default function SelectPage() {
               onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.transform='';(e.currentTarget as HTMLDivElement).style.boxShadow=''}}>
               <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.2)' }}/>
               <div style={{ position:'relative', display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
-                <div style={{ width:48, height:48, background:'rgba(200,16,46,0.35)', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, color:'#fff', border:'1px solid rgba(255,255,255,0.15)', flexShrink:0 }}>
-                  <i className="bi bi-building-fill"/>
-                </div>
+                <img src="/images.png" style={{ width:48, height:48, borderRadius:12, objectFit:'cover', flexShrink:0 }}/>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>Travelodge Nimman</div>
                   <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)' }}>Chiang Mai</div>
@@ -70,9 +68,7 @@ export default function SelectPage() {
               onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.transform='';(e.currentTarget as HTMLDivElement).style.boxShadow=''}}>
               <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.2)' }}/>
               <div style={{ position:'relative', display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
-                <div style={{ width:48, height:48, background:'rgba(8,145,178,0.35)', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, color:'#fff', border:'1px solid rgba(255,255,255,0.15)', flexShrink:0 }}>
-                  <i className="bi bi-buildings-fill"/>
-                </div>
+                <img src="/Unimman.png" style={{ width:48, height:48, borderRadius:12, objectFit:'cover', flexShrink:0 }}/>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>Eastin Tan & U Nimman</div>
                   <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)' }}>Chiang Mai</div>

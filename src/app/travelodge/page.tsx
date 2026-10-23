@@ -5,12 +5,13 @@ import { useDraft } from '@/lib/useDraft'
 import { AppHeader } from '@/components/AppHeader'
 import { SpeedCard } from '@/components/SpeedCard'
 import { UPS_BUILDINGS } from '@/lib/types'
+import { reportTag, reportLegend, type SpeedMeta, type SpeedItem } from '@/lib/speedtest'
 const F='Prompt,sans-serif'; const M='IBM Plex Mono,monospace'
 
 const LOCS=[{key:'cafe6t6',label:'Cafe 6T6',icon:'bi-cup-hot'},{key:'thelodge',label:'The Lodge',icon:'bi-house'},{key:'lobby',label:'Lobby',icon:'bi-building'},{key:'swimgym',label:'Swim & Gym',icon:'bi-dribbble'}]
-interface N{download:string;upload:string;remark:string}
+interface N{download:string;upload:string;remark:string;meta?:SpeedMeta}
 interface U{building:string;backupMin:string;tempC:string;remark:string}
-interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string}
+interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string;internetMeta?:SpeedMeta}
 interface S{tempIn:string;tempOut:string;humidity:string;remark:string}
 interface D{nets:Record<string,N>;srv:S;ups:U[];rooms:R[]}
 
@@ -25,11 +26,13 @@ function fmt(d:D):string{
   const date=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric',weekday:'long'})
   const L=['📋 Daily Report',`📅 ${date}`,'🏨 Travelodge Nimman Chiang Mai','─'.repeat(36),'']
   const nn=LOCS.filter(l=>d.nets[l.key]?.download||d.nets[l.key]?.upload)
-  if(nn.length){L.push('🌐 Network');nn.forEach(l=>{const n=d.nets[l.key];L.push(`• ${l.label} : ↓${n.download||'—'} / ↑${n.upload||'—'} Mbps${n.remark?`  (${n.remark})`:''}`)});L.push('')}
-  d.rooms.filter(r=>r.roomNumber).forEach(r=>{L.push(`🚪 Room ${r.roomNumber}`);L.push(`• TV : ${r.tvOk?'OK':'NG'}`);L.push(`• Tel : ${r.telOk?'OK':'NG'}`);if(r.internetDown||r.internetUp)L.push(`• Internet : ↓${r.internetDown||'—'} / ↑${r.internetUp||'—'} Mbps`);if(r.remark)L.push(`• Remark : ${r.remark}`);L.push('')})
+  if(nn.length){L.push('🌐 Network');nn.forEach(l=>{const n=d.nets[l.key];L.push(`• ${l.label} : ↓${n.download||'—'} / ↑${n.upload||'—'} Mbps${reportTag(n.download,n.upload,n.meta)}${n.remark?`  (${n.remark})`:''}`)});L.push('')}
+  d.rooms.filter(r=>r.roomNumber).forEach(r=>{L.push(`🚪 Room ${r.roomNumber}`);L.push(`• TV : ${r.tvOk?'OK':'NG'}`);L.push(`• Tel : ${r.telOk?'OK':'NG'}`);if(r.internetDown||r.internetUp)L.push(`• Internet : ↓${r.internetDown||'—'} / ↑${r.internetUp||'—'} Mbps${reportTag(r.internetDown,r.internetUp,r.internetMeta)}`);if(r.remark)L.push(`• Remark : ${r.remark}`);L.push('')})
   const uu=d.ups.filter(u=>u.building&&(u.backupMin||u.tempC))
   if(uu.length){L.push('🔋 UPS');uu.forEach(u=>{L.push(`• ${u.building} : Backup ${u.backupMin||'—'} min`);if(u.tempC)L.push(`  Temp : ${u.tempC}°C`);if(u.remark)L.push(`  Remark : ${u.remark}`)});L.push('')}
   const{srv}=d;if(srv.tempIn||srv.tempOut||srv.humidity){const v=parseFloat(srv.humidity);const c=!isNaN(v)?(v>=40&&v<=60?'Comfort':v<40?'Dry':'Humid'):'';L.push('🖥️ Server Room');if(srv.tempIn)L.push(`• Temp In : ${srv.tempIn}°C`);if(srv.tempOut)L.push(`• Temp Out : ${srv.tempOut}°C`);if(srv.humidity)L.push(`• Humidity : ${srv.humidity}%${c?` (${c})`:''}`);if(srv.remark)L.push(`• Remark : ${srv.remark}`)}
+  const lg=reportLegend([...LOCS.map((l):SpeedItem=>[d.nets[l.key]?.download||'',d.nets[l.key]?.upload||'',d.nets[l.key]?.meta]),...d.rooms.filter(r=>r.roomNumber).map((r):SpeedItem=>[r.internetDown,r.internetUp,r.internetMeta])])
+  if(lg.length)L.push('',...lg)
   return L.join('\n')
 }
 
@@ -45,13 +48,13 @@ export default function TravelodgePage() {
   if(loading||!loaded)return<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#F5F5F5',color:'#9CA3AF',fontFamily:F}}>กำลังโหลดข้อมูล...</div>
 
   const upd=(p:Partial<D>)=>setData(prev=>({...prev,...p}))
-  const updN=(k:string,f:keyof N,v:string)=>setData(p=>({...p,nets:{...p.nets,[k]:{...p.nets[k],[f]:v}}}))
-  const updR=(i:number,f:keyof R,v:string|boolean)=>setData(p=>{const r=[...p.rooms];(r[i] as any)[f]=v;return{...p,rooms:r}})
+  const updN=(k:string,f:keyof N,v:N[keyof N])=>setData(p=>({...p,nets:{...p.nets,[k]:{...p.nets[k],[f]:v}}}))
+  const updR=(i:number,f:keyof R,v:R[keyof R])=>setData(p=>{const r=[...p.rooms];(r[i] as any)[f]=v;return{...p,rooms:r}})
   const updU=(i:number,f:keyof U,v:string)=>setData(p=>{const u=[...p.ups];u[i][f]=v;return{...p,ups:u}})
 
   const submit=async()=>{
     setSub(true)
-    try{await fetch('/api/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hotelType:'travelodge',networkTests:LOCS.map(l=>({location:l.key,...data.nets[l.key]})),serverRoom:data.srv,upsChecks:data.ups,roomChecks:data.rooms})});setRpt(fmt(data));setShowRpt(true)}catch{alert('Error')}
+    try{const res=await fetch('/api/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hotelType:'travelodge',networkTests:LOCS.map(l=>({location:l.key,...data.nets[l.key]})),serverRoom:data.srv,upsChecks:data.ups,roomChecks:data.rooms})});if(!res.ok)throw new Error(String(res.status));setRpt(fmt(data));setShowRpt(true)}catch{alert('บันทึกไม่สำเร็จ ลองส่งใหม่อีกครั้ง')}
     setSub(false)
   }
   const copy=async()=>{await navigator.clipboard.writeText(rpt);setCopied(true);setTimeout(()=>setCopied(false),2000)}
@@ -89,7 +92,7 @@ export default function TravelodgePage() {
           {/* NETWORK */}
           <div style={sec()}>
             <div style={secHead}><div style={{display:'flex',alignItems:'center',gap:10}}><div style={{width:30,height:30,borderRadius:7,background:'#FDEAED',color:'#C8102E',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15}}><i className="bi bi-speedometer2"/></div><span style={{fontSize:14,fontWeight:600}}>Network Speed Test</span></div><span style={{fontSize:11,color:'#6B7280',background:'#F3F4F6',padding:'2px 8px',borderRadius:20,fontWeight:500}}>4 จุด</span></div>
-            <div style={{padding:'14px 16px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{LOCS.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)}/>)}</div></div>
+            <div style={{padding:'14px 16px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{LOCS.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} meta={data.nets[l.key]?.meta} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)} onMeta={m=>updN(l.key,'meta',m)}/>)}</div></div>
           </div>
 
           {/* SERVER ROOM */}
@@ -149,7 +152,7 @@ export default function TravelodgePage() {
                         </button>
                       ))}
                     </div>
-                    <SpeedCard label={`Internet ห้อง ${r.roomNumber||'—'}`} icon="bi-wifi" download={r.internetDown} upload={r.internetUp} remark={r.remark} onDownload={v=>updR(i,'internetDown',v)} onUpload={v=>updR(i,'internetUp',v)} onRemark={v=>updR(i,'remark',v)}/>
+                    <SpeedCard label={`Internet ห้อง ${r.roomNumber||'—'}`} icon="bi-wifi" download={r.internetDown} upload={r.internetUp} remark={r.remark} meta={r.internetMeta} onDownload={v=>updR(i,'internetDown',v)} onUpload={v=>updR(i,'internetUp',v)} onRemark={v=>updR(i,'remark',v)} onMeta={m=>updR(i,'internetMeta',m)}/>
                   </div>
                 </div>
               ))}

@@ -4,13 +4,14 @@ import { useAuth } from '@/lib/useAuth'
 import { useDraft } from '@/lib/useDraft'
 import { AppHeader } from '@/components/AppHeader'
 import { SpeedCard } from '@/components/SpeedCard'
+import { reportTag, reportLegend, type SpeedMeta, type SpeedItem } from '@/lib/speedtest'
 const F='Prompt,sans-serif'; const M='IBM Plex Mono,monospace'
 
 const ELOCS=[{key:'el',label:'Lobby',icon:'bi-building'},{key:'ets',label:'T Station',icon:'bi-signpost-2'},{key:'ec',label:'Cafe',icon:'bi-cup-hot'},{key:'esp',label:'Swimming Pool',icon:'bi-water'}]
 const ULOCS=[{key:'ul',label:'Lobby',icon:'bi-building'},{key:'ueat',label:'Eat@',icon:'bi-shop'},{key:'upb',label:'Pool Bar',icon:'bi-cup-straw'}]
 
-interface N{download:string;upload:string;remark:string}
-interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string}
+interface N{download:string;upload:string;remark:string;meta?:SpeedMeta}
+interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string;internetMeta?:SpeedMeta}
 interface D{nets:Record<string,N>;er:R[];ur:R[]}
 
 const defR=():R=>({roomNumber:'',tvOk:false,telOk:false,internetDown:'',internetUp:'',remark:''})
@@ -21,16 +22,18 @@ function fmt(d:D):string{
   const L=['📋 Daily Report',`📅 ${date}`,'🏨 Eastin Tan & U Nimman Chiang Mai','─'.repeat(36),'']
   L.push('═══ EASTIN TAN HOTEL ═══','')
   const en=ELOCS.filter(l=>d.nets[l.key]?.download||d.nets[l.key]?.upload)
-  if(en.length){L.push('🌐 Network');en.forEach(l=>{const n=d.nets[l.key];L.push(`• ${l.label} : ↓${n.download||'—'} / ↑${n.upload||'—'} Mbps${n.remark?`  (${n.remark})`:''}`)}); L.push('')}
-  d.er.filter(r=>r.roomNumber).forEach(r=>{L.push(`🚪 Room ${r.roomNumber}`);L.push(`• TV : ${r.tvOk?'OK':'NG'}`);L.push(`• Tel : ${r.telOk?'OK':'NG'}`);if(r.internetDown||r.internetUp)L.push(`• Internet : ↓${r.internetDown||'—'} / ↑${r.internetUp||'—'} Mbps`);if(r.remark)L.push(`• Remark : ${r.remark}`);L.push('')})
+  if(en.length){L.push('🌐 Network');en.forEach(l=>{const n=d.nets[l.key];L.push(`• ${l.label} : ↓${n.download||'—'} / ↑${n.upload||'—'} Mbps${reportTag(n.download,n.upload,n.meta)}${n.remark?`  (${n.remark})`:''}`)}); L.push('')}
+  d.er.filter(r=>r.roomNumber).forEach(r=>{L.push(`🚪 Room ${r.roomNumber}`);L.push(`• TV : ${r.tvOk?'OK':'NG'}`);L.push(`• Tel : ${r.telOk?'OK':'NG'}`);if(r.internetDown||r.internetUp)L.push(`• Internet : ↓${r.internetDown||'—'} / ↑${r.internetUp||'—'} Mbps${reportTag(r.internetDown,r.internetUp,r.internetMeta)}`);if(r.remark)L.push(`• Remark : ${r.remark}`);L.push('')})
   L.push('','═══ U NIMMAN HOTEL ═══','')
   const un=ULOCS.filter(l=>d.nets[l.key]?.download||d.nets[l.key]?.upload)
-  if(un.length){L.push('🌐 Network');un.forEach(l=>{const n=d.nets[l.key];L.push(`• ${l.label} : ↓${n.download||'—'} / ↑${n.upload||'—'} Mbps${n.remark?`  (${n.remark})`:''}`)}); L.push('')}
-  d.ur.filter(r=>r.roomNumber).forEach(r=>{L.push(`🚪 Room ${r.roomNumber}`);L.push(`• TV : ${r.tvOk?'OK':'NG'}`);L.push(`• Tel : ${r.telOk?'OK':'NG'}`);if(r.internetDown||r.internetUp)L.push(`• Internet : ↓${r.internetDown||'—'} / ↑${r.internetUp||'—'} Mbps`);if(r.remark)L.push(`• Remark : ${r.remark}`);L.push('')})
+  if(un.length){L.push('🌐 Network');un.forEach(l=>{const n=d.nets[l.key];L.push(`• ${l.label} : ↓${n.download||'—'} / ↑${n.upload||'—'} Mbps${reportTag(n.download,n.upload,n.meta)}${n.remark?`  (${n.remark})`:''}`)}); L.push('')}
+  d.ur.filter(r=>r.roomNumber).forEach(r=>{L.push(`🚪 Room ${r.roomNumber}`);L.push(`• TV : ${r.tvOk?'OK':'NG'}`);L.push(`• Tel : ${r.telOk?'OK':'NG'}`);if(r.internetDown||r.internetUp)L.push(`• Internet : ↓${r.internetDown||'—'} / ↑${r.internetUp||'—'} Mbps${reportTag(r.internetDown,r.internetUp,r.internetMeta)}`);if(r.remark)L.push(`• Remark : ${r.remark}`);L.push('')})
+  const lg=reportLegend([...[...ELOCS,...ULOCS].map((l):SpeedItem=>[d.nets[l.key]?.download||'',d.nets[l.key]?.upload||'',d.nets[l.key]?.meta]),...[...d.er,...d.ur].filter(r=>r.roomNumber).map((r):SpeedItem=>[r.internetDown,r.internetUp,r.internetMeta])])
+  if(lg.length)L.push(...lg)
   return L.join('\n')
 }
 
-function RoomCard({r,onChange}:{r:R;onChange:(f:keyof R,v:string|boolean)=>void}){
+function RoomCard({r,onChange}:{r:R;onChange:(f:keyof R,v:R[keyof R])=>void}){
   return(
     <div style={{border:'1.5px solid #E5E7EB',borderRadius:9,overflow:'hidden'}}>
       <div style={{padding:'10px 12px',background:'#111',borderBottom:'2px solid #0891B2'}}>
@@ -45,7 +48,7 @@ function RoomCard({r,onChange}:{r:R;onChange:(f:keyof R,v:string|boolean)=>void}
             </button>
           ))}
         </div>
-        <SpeedCard label={`Internet ห้อง ${r.roomNumber||'—'}`} icon="bi-wifi" download={r.internetDown} upload={r.internetUp} remark={r.remark} onDownload={v=>onChange('internetDown',v)} onUpload={v=>onChange('internetUp',v)} onRemark={v=>onChange('remark',v)}/>
+        <SpeedCard label={`Internet ห้อง ${r.roomNumber||'—'}`} icon="bi-wifi" download={r.internetDown} upload={r.internetUp} remark={r.remark} meta={r.internetMeta} onDownload={v=>onChange('internetDown',v)} onUpload={v=>onChange('internetUp',v)} onRemark={v=>onChange('remark',v)} onMeta={m=>onChange('internetMeta',m)}/>
       </div>
     </div>
   )
@@ -62,12 +65,12 @@ export default function EastinUPage(){
 
   if(loading||!loaded)return<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#F5F5F5',color:'#9CA3AF',fontFamily:F}}>กำลังโหลดข้อมูล...</div>
 
-  const updN=(k:string,f:keyof N,v:string)=>setData(p=>({...p,nets:{...p.nets,[k]:{...p.nets[k],[f]:v}}}))
-  const updR=(hotel:'er'|'ur',i:number,f:keyof R,v:string|boolean)=>setData(p=>{const r=[...p[hotel]];(r[i] as any)[f]=v;return{...p,[hotel]:r}})
+  const updN=(k:string,f:keyof N,v:N[keyof N])=>setData(p=>({...p,nets:{...p.nets,[k]:{...p.nets[k],[f]:v}}}))
+  const updR=(hotel:'er'|'ur',i:number,f:keyof R,v:R[keyof R])=>setData(p=>{const r=[...p[hotel]];(r[i] as any)[f]=v;return{...p,[hotel]:r}})
 
   const submit=async()=>{
     setSub(true)
-    try{await fetch('/api/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hotelType:'eastin-u',networkTests:[...ELOCS,...ULOCS].map(l=>({location:l.key,...data.nets[l.key]})),roomChecks:[...data.er,...data.ur]})});setRpt(fmt(data));setShowRpt(true)}catch{alert('Error')}
+    try{const res=await fetch('/api/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hotelType:'eastin-u',networkTests:[...ELOCS,...ULOCS].map(l=>({location:l.key,...data.nets[l.key]})),roomChecks:[...data.er,...data.ur]})});if(!res.ok)throw new Error(String(res.status));setRpt(fmt(data));setShowRpt(true)}catch{alert('บันทึกไม่สำเร็จ ลองส่งใหม่อีกครั้ง')}
     setSub(false)
   }
   const copy=async()=>{await navigator.clipboard.writeText(rpt);setCopied(true);setTimeout(()=>setCopied(false),2000)}
@@ -79,7 +82,7 @@ export default function EastinUPage(){
         <div style={{display:'flex',alignItems:'center',gap:10}}><div style={ico(icoStyle.bg,icoStyle.c)}><i className="bi bi-speedometer2"/></div><span style={{fontSize:14,fontWeight:600}}>Network Speed Test</span></div>
         <span style={{fontSize:11,color:'#6B7280',background:'#F3F4F6',padding:'2px 8px',borderRadius:20,fontWeight:500}}>{badge}</span>
       </div>
-      <div style={{padding:'14px 16px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{locs.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)}/>)}</div></div>
+      <div style={{padding:'14px 16px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{locs.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} meta={data.nets[l.key]?.meta} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)} onMeta={m=>updN(l.key,'meta',m)}/>)}</div></div>
     </div>
   )
 
