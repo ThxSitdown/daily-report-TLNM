@@ -181,17 +181,3 @@ export function reportTag(download: string, upload: string, meta?: SpeedMeta | n
   const warn = routeWarning(meta)
   return ` · ping ${meta.ping} ms ${warn ? `⚠${warn.short} ` : '✓'}${measuredTime(meta).label}`
 }
-
-export type SpeedItem = [download: string, upload: string, meta: SpeedMeta | null | undefined]
-
-// คำอธิบายท้ายรายงาน: สัญลักษณ์ + server/ค่ายเน็ตที่ใช้วัดของทุกจุด
-export function reportLegend(items: SpeedItem[]) {
-  if (!items.some(([d, u]) => d || u)) return []
-  const auto = items.filter(([d, u, m]) => isAutoMeasured(d, u, m)).map(([, , m]) => m as SpeedMeta)
-  const sources = Array.from(new Set(auto.filter(m => !routeWarning(m)).map(m => [m.server, m.isp].filter(Boolean).join(' · '))))
-  return [
-    'ℹ️ ✓ = วัดอัตโนมัติด้วยระบบ (เวลาที่วัด) · ✎ = กรอกเอง',
-    ...(auto.some(m => routeWarning(m)) ? ['   ⚠ = วัดผ่าน Private Relay/VPN หรือ server ต่างประเทศ ค่าอาจไม่ใช่ความเร็วจริงของเน็ตโรงแรม'] : []),
-    ...sources.map(s => `   วัดกับ ${s}`),
-  ]
-}

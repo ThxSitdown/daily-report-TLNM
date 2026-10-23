@@ -1,18 +1,19 @@
 'use client'
 import { useRouter } from 'next/navigation'
 const F = 'Prompt,sans-serif'
-interface Props { username: string; saving?: boolean; showBack?: boolean; onLogout: () => void }
-export function AppHeader({ username, saving, showBack = true, onLogout }: Props) {
+// saving ไม่ส่งมา = หน้าที่ไม่มีร่าง (เช่นหน้าประวัติ) จะไม่แสดงสถานะร่าง
+interface Props { username: string; saving?: boolean; showBack?: boolean; backHref?: string; backLabel?: string; onLogout: () => void }
+export function AppHeader({ username, saving, showBack = true, backHref = '/select', backLabel = 'เลือกโรงแรม', onLogout }: Props) {
   const router = useRouter()
   return (
     <div style={{ background:'#111', borderBottom:'3px solid #C8102E', padding:'0 16px', height:50, display:'flex', alignItems:'center', gap:10, fontFamily:F }}>
       {showBack && (
-        <button onClick={() => router.push('/select')} style={{ background:'rgba(255,255,255,0.08)', color:'#fff', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'4px 10px', fontSize:12, display:'flex', alignItems:'center', gap:5, cursor:'pointer', fontFamily:F }}>
-          <i className="bi bi-arrow-left"/> เลือกโรงแรม
+        <button onClick={() => router.push(backHref)} style={{ background:'rgba(255,255,255,0.08)', color:'#fff', border:'1px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'4px 10px', fontSize:12, display:'flex', alignItems:'center', gap:5, cursor:'pointer', fontFamily:F }}>
+          <i className="bi bi-arrow-left"/> {backLabel}
         </button>
       )}
       <span style={{ flex:1, fontSize:12, color: saving ? '#FACC15' : '#4B5563', transition:'color 0.3s' }}>
-        {saving ? '⏳ กำลังบันทึกร่าง...' : '✓ ร่างถูกบันทึกแล้ว'}
+        {saving === undefined ? '' : saving ? '⏳ กำลังบันทึกร่าง...' : '✓ ร่างถูกบันทึกแล้ว'}
       </span>
       <span style={{ fontSize:12, color:'#9CA3AF', display:'flex', alignItems:'center', gap:4 }}>
         <i className="bi bi-person-circle"/>{username}

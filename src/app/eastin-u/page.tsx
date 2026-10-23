@@ -1,14 +1,14 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useAuth } from '@/lib/useAuth'
 import { useDraft } from '@/lib/useDraft'
 import { AppHeader } from '@/components/AppHeader'
 import { SpeedCard } from '@/components/SpeedCard'
-import { reportTag, reportLegend, type SpeedMeta, type SpeedItem } from '@/lib/speedtest'
+import { ReportPreview, ClearFormModal, SubmitBar } from '@/components/ReportFlow'
+import { EASTIN_LOCS as ELOCS, UNIMMAN_LOCS as ULOCS } from '@/lib/hotels'
+import { reportTag, type SpeedMeta } from '@/lib/speedtest'
 const F='Prompt,sans-serif'; const M='IBM Plex Mono,monospace'
-
-const ELOCS=[{key:'el',label:'Lobby',icon:'bi-building'},{key:'ets',label:'T Station',icon:'bi-signpost-2'},{key:'ec',label:'Cafe',icon:'bi-cup-hot'},{key:'esp',label:'Swimming Pool',icon:'bi-water'}]
-const ULOCS=[{key:'ul',label:'Lobby',icon:'bi-building'},{key:'ueat',label:'Eat@',icon:'bi-shop'},{key:'upb',label:'Pool Bar',icon:'bi-cup-straw'}]
 
 interface N{download:string;upload:string;remark:string;meta?:SpeedMeta}
 interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string;internetMeta?:SpeedMeta}
@@ -18,8 +18,7 @@ const defR=():R=>({roomNumber:'',tvOk:false,telOk:false,internetDown:'',internet
 const def=():D=>({nets:Object.fromEntries([...ELOCS,...ULOCS].map(l=>[l.key,{download:'',upload:'',remark:''}])),er:[defR(),defR()],ur:[defR(),defR()]})
 
 function fmt(d:D):string{
-  const date=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric',weekday:'long'})
-  const L=['📋 Daily Report',`📅 ${date}`,'🏨 Eastin Tan & U Nimman Chiang Mai','─'.repeat(36),'']
+  const L=['📋 Daily Report','─'.repeat(36),'']
   L.push('═══ EASTIN TAN HOTEL ═══','')
   const en=ELOCS.filter(l=>d.nets[l.key]?.download||d.nets[l.key]?.upload)
   if(en.length){L.push('🌐 Network');en.forEach(l=>{const n=d.nets[l.key];L.push(`• ${l.label} : ↓${n.download||'—'} / ↑${n.upload||'—'} Mbps${reportTag(n.download,n.upload,n.meta)}${n.remark?`  (${n.remark})`:''}`)}); L.push('')}
@@ -28,9 +27,7 @@ function fmt(d:D):string{
   const un=ULOCS.filter(l=>d.nets[l.key]?.download||d.nets[l.key]?.upload)
   if(un.length){L.push('🌐 Network');un.forEach(l=>{const n=d.nets[l.key];L.push(`• ${l.label} : ↓${n.download||'—'} / ↑${n.upload||'—'} Mbps${reportTag(n.download,n.upload,n.meta)}${n.remark?`  (${n.remark})`:''}`)}); L.push('')}
   d.ur.filter(r=>r.roomNumber).forEach(r=>{L.push(`🚪 Room ${r.roomNumber}`);L.push(`• TV : ${r.tvOk?'OK':'NG'}`);L.push(`• Tel : ${r.telOk?'OK':'NG'}`);if(r.internetDown||r.internetUp)L.push(`• Internet : ↓${r.internetDown||'—'} / ↑${r.internetUp||'—'} Mbps${reportTag(r.internetDown,r.internetUp,r.internetMeta)}`);if(r.remark)L.push(`• Remark : ${r.remark}`);L.push('')})
-  const lg=reportLegend([...[...ELOCS,...ULOCS].map((l):SpeedItem=>[d.nets[l.key]?.download||'',d.nets[l.key]?.upload||'',d.nets[l.key]?.meta]),...[...d.er,...d.ur].filter(r=>r.roomNumber).map((r):SpeedItem=>[r.internetDown,r.internetUp,r.internetMeta])])
-  if(lg.length)L.push(...lg)
-  return L.join('\n')
+  return L.join('\n').trim()
 }
 
 function RoomCard({r,onChange}:{r:R;onChange:(f:keyof R,v:R[keyof R])=>void}){
@@ -61,20 +58,21 @@ const ico=(bg:string,c:string):React.CSSProperties=>({width:30,height:30,borderR
 export default function EastinUPage(){
   const{user,loading,logout}=useAuth()
   const{data,setData,loaded,saving,clearDraft}=useDraft<D>('eastin-u',def())
-  const[rpt,setRpt]=useState('');const[showRpt,setShowRpt]=useState(false);const[copied,setCopied]=useState(false);const[showClr,setShowClr]=useState(false);const[sub,setSub]=useState(false)
+  const[rpt,setRpt]=useState('');const[showRpt,setShowRpt]=useState(false);const[sent,setSent]=useState(false);const[showClr,setShowClr]=useState(false);const[sub,setSub]=useState(false)
 
   if(loading||!loaded)return<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#F5F5F5',color:'#9CA3AF',fontFamily:F}}>กำลังโหลดข้อมูล...</div>
 
   const updN=(k:string,f:keyof N,v:N[keyof N])=>setData(p=>({...p,nets:{...p.nets,[k]:{...p.nets[k],[f]:v}}}))
   const updR=(hotel:'er'|'ur',i:number,f:keyof R,v:R[keyof R])=>setData(p=>{const r=[...p[hotel]];(r[i] as any)[f]=v;return{...p,[hotel]:r}})
 
-  const submit=async()=>{
+  const preview=()=>{setRpt(fmt(data));setSent(false);setShowRpt(true);window.scrollTo(0,0)}
+  const confirmSend=async()=>{
     setSub(true)
-    try{const res=await fetch('/api/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hotelType:'eastin-u',networkTests:[...ELOCS,...ULOCS].map(l=>({location:l.key,...data.nets[l.key]})),roomChecks:[...data.er,...data.ur]})});if(!res.ok)throw new Error(String(res.status));setRpt(fmt(data));setShowRpt(true)}catch{alert('บันทึกไม่สำเร็จ ลองส่งใหม่อีกครั้ง')}
+    try{const res=await fetch('/api/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hotelType:'eastin-u',reportText:rpt,networkTests:[...ELOCS,...ULOCS].map(l=>({location:l.key,...data.nets[l.key]})),roomChecks:[...data.er,...data.ur]})});if(!res.ok)throw new Error(String(res.status));await clearDraft();setData(def());setSent(true)}catch{alert('ส่งไม่สำเร็จ ลองกดยืนยันอีกครั้ง')}
     setSub(false)
   }
-  const copy=async()=>{await navigator.clipboard.writeText(rpt);setCopied(true);setTimeout(()=>setCopied(false),2000)}
-  const clear=async()=>{await clearDraft();setData(def());setShowRpt(false);setShowClr(false)}
+  const clear=async()=>{await clearDraft();setData(def());setShowClr(false)}
+  const backToForm=()=>{setShowRpt(false);setSent(false)}
 
   const netSection=(locs:typeof ELOCS,badge:string,icoStyle:{bg:string;c:string})=>(
     <div style={card()}>
@@ -99,25 +97,14 @@ export default function EastinUPage(){
       <div style={{background:'linear-gradient(135deg,#0D4A3A,#0891B2)',borderBottom:'3px solid #0891B2',padding:16}}>
         <div style={{maxWidth:760,margin:'0 auto',display:'flex',alignItems:'center',gap:14}}>
           <div style={{width:44,height:44,background:'rgba(8,145,178,0.3)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,color:'#fff',border:'1px solid rgba(255,255,255,0.2)',flexShrink:0}}><i className="bi bi-buildings-fill"/></div>
-          <div><div style={{fontSize:17,fontWeight:700,color:'#fff'}}>Eastin Tan & U Nimman</div><div style={{fontSize:12,color:'rgba(255,255,255,0.6)'}}>Chiang Mai — Combined Daily Report</div></div>
+          <div style={{flex:1}}><div style={{fontSize:17,fontWeight:700,color:'#fff'}}>Eastin Tan & U Nimman</div><div style={{fontSize:12,color:'rgba(255,255,255,0.6)'}}>Chiang Mai — Combined Daily Report</div></div>
+          <Link href="/history/eastin-u" style={{padding:'6px 12px',background:'rgba(255,255,255,0.12)',color:'#fff',border:'1px solid rgba(255,255,255,0.25)',borderRadius:7,fontSize:12,display:'flex',alignItems:'center',gap:5,textDecoration:'none',whiteSpace:'nowrap'}}><i className="bi bi-clock-history"/> ประวัติ</Link>
         </div>
       </div>
 
       <div style={{maxWidth:760,margin:'0 auto',padding:'16px',display:'flex',flexDirection:'column',gap:12}}>
 
-        {showRpt&&(
-          <div style={card()}>
-            <div style={{background:'#0D4A3A',borderBottom:'3px solid #0891B2',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <span style={{fontSize:14,fontWeight:700,color:'#fff',display:'flex',alignItems:'center',gap:7}}><i className="bi bi-check-circle-fill" style={{color:'#34D399'}}/> บันทึกสำเร็จ</span>
-              <div style={{display:'flex',gap:8}}>
-                <button onClick={copy} style={{padding:'6px 13px',background:copied?'rgba(5,150,105,0.5)':'rgba(255,255,255,0.12)',color:'#fff',border:'1px solid rgba(255,255,255,0.2)',borderRadius:6,fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontFamily:F}}><i className={`bi ${copied?'bi-check2':'bi-clipboard'}`}/>{copied?'Copied!':'Copy'}</button>
-                <button onClick={()=>setShowClr(true)} style={{padding:'6px 13px',background:'rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.75)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:6,fontSize:12,cursor:'pointer',fontFamily:F,display:'flex',alignItems:'center',gap:5}}><i className="bi bi-trash3"/> Clear</button>
-              </div>
-            </div>
-            <div style={{padding:16}}><pre style={{fontFamily:M,fontSize:13,lineHeight:1.85,background:'#F8F8F8',borderRadius:8,padding:14,border:'1px solid #E5E7EB',whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{rpt}</pre></div>
-            <button onClick={()=>setShowRpt(false)} style={{display:'flex',alignItems:'center',gap:5,margin:'0 16px 16px',padding:'8px 14px',background:'#F3F4F6',border:'1px solid #E5E7EB',borderRadius:7,fontSize:13,color:'#6B7280',cursor:'pointer',fontFamily:F}}><i className="bi bi-arrow-left"/> แก้ไข</button>
-          </div>
-        )}
+        {showRpt&&<ReportPreview text={rpt} sent={sent} sending={sub} headerBg="#0D4A3A" accent="#0891B2" historyHref="/history/eastin-u" onEdit={backToForm} onConfirm={confirmSend} onNew={backToForm}/>}
 
         {!showRpt&&(<>
           {/* EASTIN TAN */}
@@ -135,29 +122,11 @@ export default function EastinUPage(){
           {roomSection(data.ur,'ur')}
 
           {/* SUBMIT */}
-          <div style={{background:'#fff',border:'1px solid #E5E7EB',borderRadius:12,padding:14}}>
-            <button onClick={submit} disabled={sub} style={{width:'100%',padding:13,background:'linear-gradient(135deg,#0D9488,#0891B2)',color:'#fff',border:'none',borderRadius:8,fontSize:15,fontWeight:600,cursor:sub?'not-allowed':'pointer',opacity:sub?0.7:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:F,boxShadow:'0 3px 10px rgba(13,149,136,0.28)'}}>
-              <i className="bi bi-send-fill"/>{sub?'กำลังบันทึก...':'ส่ง Daily Report (Eastin + U Nimman)'}
-            </button>
-          </div>
+          <SubmitBar background="linear-gradient(135deg,#0D9488,#0891B2)" shadow="0 3px 10px rgba(13,149,136,0.28)" onClear={()=>setShowClr(true)} onPreview={preview}/>
         </>)}
       </div>
 
-      {showClr&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:999,padding:20}}>
-          <div style={{background:'#fff',borderRadius:14,padding:24,maxWidth:340,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
-            <div style={{textAlign:'center',marginBottom:16}}>
-              <div style={{width:46,height:46,background:'#FEE2E2',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,margin:'0 auto 12px',color:'#DC2626'}}><i className="bi bi-trash3-fill"/></div>
-              <div style={{fontSize:16,fontWeight:700,marginBottom:6}}>ล้างข้อมูลทั้งหมด?</div>
-              <div style={{fontSize:13,color:'#6B7280'}}>ข้อมูลทั้งหมดจะถูกลบออกจาก Server ด้วย</div>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-              <button onClick={()=>setShowClr(false)} style={{padding:10,background:'#F3F4F6',border:'1px solid #E5E7EB',borderRadius:8,fontSize:14,cursor:'pointer',fontFamily:F}}>ยกเลิก</button>
-              <button onClick={clear} style={{padding:10,background:'#DC2626',color:'#fff',border:'none',borderRadius:8,fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:F}}>ล้างข้อมูล</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showClr&&<ClearFormModal onCancel={()=>setShowClr(false)} onConfirm={clear}/>}
     </div>
   )
 }

@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 import { isAutoMeasured, routeWarning } from '@/lib/speedtest'
 
 // เก็บผลวัดพร้อม flag auto = ตัวเลขที่ส่งมายังตรงกับผลวัดจริงไหม, warning = วัดผ่าน Private Relay/VPN หรือ server ต่างประเทศ
 const speedMeta = (down: any, up: any, meta: any) => meta ? { ...meta, auto: isAutoMeasured(String(down ?? ''), String(up ?? ''), meta), warning: routeWarning(meta)?.short ?? null } : undefined
 
 export async function POST(req: NextRequest) {
+  const s = getSession(req)
+  if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
-    const { hotelType, networkTests, serverRoom, upsChecks, roomChecks } = await req.json()
+    const { hotelType, reportText, networkTests, serverRoom, upsChecks, roomChecks } = await req.json()
     const report = await prisma.dailyReport.create({
       data: {
         hotelType: hotelType || 'travelodge',
+        reportText: typeof reportText === 'string' ? reportText.slice(0, 20000) : null,
+        submittedBy: s.username,
         tempIn: serverRoom?.tempIn ? parseFloat(serverRoom.tempIn) : null,
         tempOut: serverRoom?.tempOut ? parseFloat(serverRoom.tempOut) : null,
         humidity: serverRoom?.humidity ? parseFloat(serverRoom.humidity) : null,
@@ -23,7 +28,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, reportId: report.id })
   } catch (e) { return NextResponse.json({ error: 'Failed' }, { status: 500 }) }
 }
-export async function GET() {
-  const reports = await prisma.dailyReport.findMany({ orderBy:{createdAt:'desc'}, take:10, include:{networkTests:true,upsChecks:true,roomChecks:true} })
-  return NextResponse.json(reports)
+
+// ประวัติรายงานของโรงแรม ใหม่สุดก่อน: GET /api/reports?hotelType=travelodge&cursor=<id ตัวสุดท้าย>
+export async function GET(req: NextRequest) {
+  if (!getSession(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const q = new URL(req.url).searchParams
+  const hotelType = q.get('hotelType') || 'travelodge'
+  const cursor = q.get('cursor')
+  const take = Math.min(Math.max(parseInt(q.get('take') || '20') || 20, 1), 50)
+  try {
+    const rows = await prisma.dailyReport.findMany({
+      where: { hotelType },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: take + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: { networkTests: true, upsChecks: true, roomChecks: true },
+    })
+    const more = rows.length > take
+    const reports = more ? rows.slice(0, take) : rows
+    return NextResponse.json({ reports, nextCursor: more ? reports[reports.length - 1].id : null })
+  } catch { return NextResponse.json({ error: 'Failed' }, { status: 500 }) }
 }

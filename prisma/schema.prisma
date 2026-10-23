@@ -34,6 +34,8 @@ model DailyReport {
   id               String        @id @default(cuid())
   createdAt        DateTime      @default(now())
   hotelType        String        @default("travelodge")
+  reportText       String?       // ข้อความรายงานตามที่กดยืนยันส่ง (ใช้ในหน้าประวัติ)
+  submittedBy      String?       // username ของคนส่ง
   tempIn           Float?
   tempOut          Float?
   humidity         Float?
