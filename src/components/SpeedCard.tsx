@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { runSpeedTest, isAutoMeasured, measuredTime, type SpeedMeta, type SpeedPhase } from '@/lib/speedtest'
+import { runSpeedTest, isAutoMeasured, measuredTime, routeWarning, type SpeedMeta, type SpeedPhase } from '@/lib/speedtest'
 const F = 'Prompt,sans-serif'
 const M = 'IBM Plex Mono,monospace'
 interface Props { label:string; icon:string; download:string; upload:string; remark:string; meta?:SpeedMeta; onDownload:(v:string)=>void; onUpload:(v:string)=>void; onRemark:(v:string)=>void; onMeta:(m:SpeedMeta)=>void }
@@ -20,6 +20,7 @@ export function SpeedCard({ label, icon, download, upload, remark, meta, onDownl
   }
   const auto = isAutoMeasured(download, upload, meta)
   const when = auto && meta ? measuredTime(meta) : null
+  const warn = auto && meta ? routeWarning(meta) : null
   const btnBg = phase==='done' ? '#D1FAE5' : phase==='error' ? '#FEE2E2' : busy ? '#F3F4F6' : '#C8102E'
   const btnColor = phase==='done' ? '#059669' : phase==='error' ? '#DC2626' : busy ? '#6B7280' : '#fff'
   return (
@@ -51,9 +52,14 @@ export function SpeedCard({ label, icon, download, upload, remark, meta, onDownl
         </div>
         {meta && when ? (
           <div style={{ display:'flex', flexDirection:'column', gap:2, fontSize:11, lineHeight:1.5, color:'#6B7280' }}>
-            <span style={when.today ? pill('#D1FAE5','#059669') : pill('#FEF3C7','#B45309')}>
-              <i className={`bi ${when.today?'bi-patch-check-fill':'bi-exclamation-triangle-fill'}`}/>{when.today?'วัดอัตโนมัติ':'วัดไว้เมื่อ'} {when.label}
-            </span>
+            {warn ? <>
+              <span style={pill('#FEE2E2','#B91C1C')}><i className="bi bi-shield-exclamation"/>{warn.short} {when.label}</span>
+              <span style={{ color:'#B91C1C' }}>{warn.long}</span>
+            </> : (
+              <span style={when.today ? pill('#D1FAE5','#059669') : pill('#FEF3C7','#B45309')}>
+                <i className={`bi ${when.today?'bi-patch-check-fill':'bi-exclamation-triangle-fill'}`}/>{when.today?'วัดอัตโนมัติ':'วัดไว้เมื่อ'} {when.label}
+              </span>
+            )}
             <span style={{ fontFamily:M }}>ping {meta.ping} ms · jitter {meta.jitter} ms</span>
             <span>{[meta.server, meta.isp].filter(Boolean).join(' · ')}</span>
           </div>

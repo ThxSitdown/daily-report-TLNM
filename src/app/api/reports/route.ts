@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { isAutoMeasured } from '@/lib/speedtest'
+import { isAutoMeasured, routeWarning } from '@/lib/speedtest'
 
-// เก็บผลวัดพร้อม flag auto = ตัวเลขที่ส่งมายังตรงกับผลวัดจริงไหม
-const speedMeta = (down: any, up: any, meta: any) => meta ? { ...meta, auto: isAutoMeasured(String(down ?? ''), String(up ?? ''), meta) } : undefined
+// เก็บผลวัดพร้อม flag auto = ตัวเลขที่ส่งมายังตรงกับผลวัดจริงไหม, warning = วัดผ่าน Private Relay/VPN หรือ server ต่างประเทศ
+const speedMeta = (down: any, up: any, meta: any) => meta ? { ...meta, auto: isAutoMeasured(String(down ?? ''), String(up ?? ''), meta), warning: routeWarning(meta)?.short ?? null } : undefined
 
 export async function POST(req: NextRequest) {
   try {

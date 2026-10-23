@@ -8,6 +8,7 @@ export interface SpeedMeta {
   server: string   // เช่น 'Cloudflare Bangkok'
   isp: string      // ค่ายเน็ตจาก ASN เช่น 'Advanced Wireless Network'
   asn?: number
+  country?: string // ประเทศของ server ที่วัด เช่น 'TH'
 }
 export type SpeedPhase = 'ping' | 'download' | 'upload'
 
@@ -22,6 +23,10 @@ const DL_BYTES = 25_000_000
 const UL_STREAMS = 4
 const UL_BYTES = 8_000_000
 const PING_COUNT = 10
+const HOME_COUNTRY = 'TH'
+// ASN ของ CDN ที่ iCloud Private Relay / WARP ใช้ออกเน็ต ถ้าเจอแปลว่าไม่ได้วัดเน็ตโรงแรมตรง ๆ
+const RELAY_ASNS = [13335, 209242, 36183, 54113]
+const RELAY_ISP = /cloudflare|akamai|fastly/i
 
 type Worker = (add: (n: number) => void, signal: AbortSignal) => Promise<void>
 
@@ -80,20 +85,21 @@ async function measurePing(): Promise<{ ping: number; jitter: number }> {
 function cleanIsp(name: string) {
   return name
     .replace(/[,.]?\s*(public\s+)?(company|co\.?)\s*,?\s*(limited|ltd\.?)\.?$/i, '')
-    .replace(/[,.]?\s+(pcl|plc|ltd\.?|limited|inc\.?)$/i, '')
+    .replace(/[,.]?\s+(pcl|plc|ltd\.?|limited|inc\.?|llc)$/i, '')
     .trim()
     .split(/\s+/)
     .map(w => (w.length > 3 ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
     .join(' ')
 }
 
-async function fetchServerInfo(): Promise<Pick<SpeedMeta, 'server' | 'isp' | 'asn'>> {
+async function fetchServerInfo(): Promise<Pick<SpeedMeta, 'server' | 'isp' | 'asn' | 'country'>> {
   try {
     const m = await fetch(`${CF}/meta`, { cache: 'no-store' }).then(r => r.json())
     return {
       server: `Cloudflare ${m.colo?.city || m.colo?.iata || ''}`.trim(),
       isp: m.asOrganization ? cleanIsp(m.asOrganization) : '',
       asn: m.asn,
+      country: m.colo?.cca2,
     }
   } catch { return { server: 'Cloudflare', isp: '' } }
 }
@@ -152,6 +158,15 @@ export function isAutoMeasured(download: string, upload: string, meta?: SpeedMet
   return !!meta && parseFloat(download) === meta.download && parseFloat(upload) === meta.upload
 }
 
+// ผลวัดที่ไม่ได้สะท้อนเน็ตโรงแรม: วิ่งผ่าน Private Relay/VPN หรือไปออก server ต่างประเทศ
+export function routeWarning(meta: SpeedMeta): { short: string; long: string } | null {
+  if ((meta.asn && RELAY_ASNS.includes(meta.asn)) || RELAY_ISP.test(meta.isp))
+    return { short: 'ผ่าน Private Relay/VPN', long: 'ไม่ใช่เน็ตโรงแรมโดยตรง ปิด iCloud Private Relay หรือ VPN แล้วกด Test ใหม่' }
+  if (meta.country && meta.country !== HOME_COUNTRY)
+    return { short: 'server ต่างประเทศ', long: 'server อยู่ต่างประเทศ ปิด VPN แล้วกด Test ใหม่' }
+  return null
+}
+
 export function measuredTime(meta: SpeedMeta) {
   const d = new Date(meta.at)
   const time = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
@@ -159,11 +174,12 @@ export function measuredTime(meta: SpeedMeta) {
   return { today, label: today ? time : `${d.toLocaleDateString('th-TH', { day: 'numeric', month: 'numeric' })} ${time}` }
 }
 
-// ส่วนท้ายบรรทัดในข้อความรายงาน เช่น ' · ping 25 ms ✓14:32' หรือ ' ✎'
+// ส่วนท้ายบรรทัดในข้อความรายงาน เช่น ' · ping 25 ms ✓14:32', ' · ping 157 ms ⚠ผ่าน Private Relay/VPN 16:24' หรือ ' ✎'
 export function reportTag(download: string, upload: string, meta?: SpeedMeta | null) {
   if (!download && !upload) return ''
   if (!meta || !isAutoMeasured(download, upload, meta)) return ' ✎'
-  return ` · ping ${meta.ping} ms ✓${measuredTime(meta).label}`
+  const warn = routeWarning(meta)
+  return ` · ping ${meta.ping} ms ${warn ? `⚠${warn.short} ` : '✓'}${measuredTime(meta).label}`
 }
 
 export type SpeedItem = [download: string, upload: string, meta: SpeedMeta | null | undefined]
@@ -172,9 +188,10 @@ export type SpeedItem = [download: string, upload: string, meta: SpeedMeta | nul
 export function reportLegend(items: SpeedItem[]) {
   if (!items.some(([d, u]) => d || u)) return []
   const auto = items.filter(([d, u, m]) => isAutoMeasured(d, u, m)).map(([, , m]) => m as SpeedMeta)
-  const sources = Array.from(new Set(auto.map(m => [m.server, m.isp].filter(Boolean).join(' · '))))
+  const sources = Array.from(new Set(auto.filter(m => !routeWarning(m)).map(m => [m.server, m.isp].filter(Boolean).join(' · '))))
   return [
     'ℹ️ ✓ = วัดอัตโนมัติด้วยระบบ (เวลาที่วัด) · ✎ = กรอกเอง',
+    ...(auto.some(m => routeWarning(m)) ? ['   ⚠ = วัดผ่าน Private Relay/VPN หรือ server ต่างประเทศ ค่าอาจไม่ใช่ความเร็วจริงของเน็ตโรงแรม'] : []),
     ...sources.map(s => `   วัดกับ ${s}`),
   ]
 }
