@@ -12,7 +12,7 @@ const LOCS=[{key:'cafe6t6',label:'Cafe 6T6',icon:'bi-cup-hot'},{key:'thelodge',l
 interface N{download:string;upload:string;remark:string;meta?:SpeedMeta}
 interface U{building:string;backupMin:string;tempC:string;remark:string}
 interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string;internetMeta?:SpeedMeta}
-interface S{tempIn:string;tempOut:string;humidity:string;remark:string}
+interface S{tempIn:string;tempOut:string;humidity:string;remark:string;humidStatus?:string}
 interface D{nets:Record<string,N>;srv:S;ups:U[];rooms:R[]}
 
 const def=():D=>({
@@ -22,6 +22,11 @@ const def=():D=>({
   rooms:[{roomNumber:'',tvOk:false,telOk:false,internetDown:'',internetUp:'',remark:''},{roomNumber:'',tvOk:false,telOk:false,internetDown:'',internetUp:'',remark:''}]
 })
 
+// สถานะความชื้น: อัตโนมัติ 40–60% = Comfort หรือเลือกเองให้ตรงกับเครื่องวัดในห้อง
+const HS:Record<string,{c:string;b:string}>={Comfort:{c:'#059669',b:'#D1FAE5'},Dry:{c:'#D97706',b:'#FEF3C7'},Humid:{c:'#DC2626',b:'#FEE2E2'}}
+const autoHumid=(h:string)=>{const v=parseFloat(h);return isNaN(v)?'':v>=40&&v<=60?'Comfort':v<40?'Dry':'Humid'}
+const humidStatus=(s:S)=>s.humidStatus||autoHumid(s.humidity)
+
 function fmt(d:D):string{
   const date=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric',weekday:'long'})
   const L=['📋 Daily Report',`📅 ${date}`,'🏨 Travelodge Nimman Chiang Mai','─'.repeat(36),'']
@@ -30,7 +35,7 @@ function fmt(d:D):string{
   d.rooms.filter(r=>r.roomNumber).forEach(r=>{L.push(`🚪 Room ${r.roomNumber}`);L.push(`• TV : ${r.tvOk?'OK':'NG'}`);L.push(`• Tel : ${r.telOk?'OK':'NG'}`);if(r.internetDown||r.internetUp)L.push(`• Internet : ↓${r.internetDown||'—'} / ↑${r.internetUp||'—'} Mbps${reportTag(r.internetDown,r.internetUp,r.internetMeta)}`);if(r.remark)L.push(`• Remark : ${r.remark}`);L.push('')})
   const uu=d.ups.filter(u=>u.building&&(u.backupMin||u.tempC))
   if(uu.length){L.push('🔋 UPS');uu.forEach(u=>{L.push(`• ${u.building} : Backup ${u.backupMin||'—'} min`);if(u.tempC)L.push(`  Temp : ${u.tempC}°C`);if(u.remark)L.push(`  Remark : ${u.remark}`)});L.push('')}
-  const{srv}=d;if(srv.tempIn||srv.tempOut||srv.humidity){const v=parseFloat(srv.humidity);const c=!isNaN(v)?(v>=40&&v<=60?'Comfort':v<40?'Dry':'Humid'):'';L.push('🖥️ Server Room');if(srv.tempIn)L.push(`• Temp In : ${srv.tempIn}°C`);if(srv.tempOut)L.push(`• Temp Out : ${srv.tempOut}°C`);if(srv.humidity)L.push(`• Humidity : ${srv.humidity}%${c?` (${c})`:''}`);if(srv.remark)L.push(`• Remark : ${srv.remark}`)}
+  const{srv}=d;if(srv.tempIn||srv.tempOut||srv.humidity){const c=srv.humidity?humidStatus(srv):'';L.push('🖥️ Server Room');if(srv.tempIn)L.push(`• Temp In : ${srv.tempIn}°C`);if(srv.tempOut)L.push(`• Temp Out : ${srv.tempOut}°C`);if(srv.humidity)L.push(`• Humidity : ${srv.humidity}%${c?` (${c})`:''}`);if(srv.remark)L.push(`• Remark : ${srv.remark}`)}
   const lg=reportLegend([...LOCS.map((l):SpeedItem=>[d.nets[l.key]?.download||'',d.nets[l.key]?.upload||'',d.nets[l.key]?.meta]),...d.rooms.filter(r=>r.roomNumber).map((r):SpeedItem=>[r.internetDown,r.internetUp,r.internetMeta])])
   if(lg.length)L.push('',...lg)
   return L.join('\n')
@@ -60,7 +65,7 @@ export default function TravelodgePage() {
   const copy=async()=>{await navigator.clipboard.writeText(rpt);setCopied(true);setTimeout(()=>setCopied(false),2000)}
   const clear=async()=>{await clearDraft();setData(def());setShowRpt(false);setShowClr(false)}
 
-  const hv=parseFloat(data.srv.humidity);const hs=isNaN(hv)?null:hv>=40&&hv<=60?{l:'Comfort',c:'#059669',b:'#D1FAE5'}:hv<40?{l:'Dry',c:'#D97706',b:'#FEF3C7'}:{l:'Humid',c:'#DC2626',b:'#FEE2E2'}
+  const hl=data.srv.humidity?humidStatus(data.srv):'';const hs=hl?{l:hl,...HS[hl]}:null;const ha=autoHumid(data.srv.humidity)
 
   return(
     <div style={{minHeight:'100vh',background:'#F5F5F5',fontFamily:F}}>
@@ -102,7 +107,7 @@ export default function TravelodgePage() {
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
                 <div style={{display:'flex',flexDirection:'column',gap:4}}><label style={lbl}><i className="bi bi-thermometer-half"/>Temp In (°C)</label><input type="number" step="0.1" placeholder="23.5" value={data.srv.tempIn} onChange={e=>upd({srv:{...data.srv,tempIn:e.target.value}})}/></div>
                 <div style={{display:'flex',flexDirection:'column',gap:4}}><label style={lbl}><i className="bi bi-thermometer"/>Temp Out (°C)</label><input type="number" step="0.1" placeholder="23.2" value={data.srv.tempOut} onChange={e=>upd({srv:{...data.srv,tempOut:e.target.value}})}/></div>
-                <div style={{display:'flex',flexDirection:'column',gap:4}}><label style={lbl}><i className="bi bi-droplet-half"/>Humidity (%){hs&&<span style={{fontSize:11,fontWeight:600,padding:'1px 7px',borderRadius:20,background:hs.b,color:hs.c}}>{hs.l}</span>}</label><input type="number" min="0" max="100" placeholder="59" value={data.srv.humidity} onChange={e=>upd({srv:{...data.srv,humidity:e.target.value}})}/></div>
+                <div style={{display:'flex',flexDirection:'column',gap:4}}><label style={lbl}><i className="bi bi-droplet-half"/>Humidity (%){hs&&<span style={{fontSize:11,fontWeight:600,padding:'1px 7px',borderRadius:20,background:hs.b,color:hs.c}}>{hs.l}</span>}</label><input type="number" min="0" max="100" placeholder="59" value={data.srv.humidity} onChange={e=>upd({srv:{...data.srv,humidity:e.target.value}})}/><select value={data.srv.humidStatus||''} onChange={e=>upd({srv:{...data.srv,humidStatus:e.target.value}})} style={{fontSize:12,padding:'5px 8px'}}><option value="">อัตโนมัติ{ha?` (${ha})`:''}</option>{Object.keys(HS).map(k=><option key={k} value={k}>{k}</option>)}</select></div>
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:4}}><label style={lbl}><i className="bi bi-chat-square-text"/>Remark</label><textarea placeholder="หมายเหตุ..." value={data.srv.remark} onChange={e=>upd({srv:{...data.srv,remark:e.target.value}})}/></div>
             </div>
