@@ -5,3 +5,6 @@ node_modules
 .env.local
 prisma/dev.db
 *.tsbuildinfo
+
+# สำรองข้อมูลจาก scripts/delete-old-reports.js (มีข้อมูลจริง ห้าม commit)
+backups/

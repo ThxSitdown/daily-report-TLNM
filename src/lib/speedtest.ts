@@ -9,8 +9,19 @@ export interface SpeedMeta {
   isp: string      // ค่ายเน็ตจาก ASN เช่น 'Advanced Wireless Network'
   asn?: number
   country?: string // ประเทศของ server ที่วัด เช่น 'TH'
+  network?: string // ชนิดการเชื่อมต่อจาก browser: 'wifi' | 'cellular' | 'ethernet' (มีเฉพาะ Chrome บน Android)
 }
 export type SpeedPhase = 'ping' | 'download' | 'upload'
+
+// AP ที่เครื่องเกาะตอนวัด browser อ่านค่าเหล่านี้เองไม่ได้ (ถูกบล็อกเพื่อความเป็นส่วนตัว) จึงให้คนกรอก
+export interface ApInfo { name?: string; ssid?: string; bssid?: string; band?: string; signal?: string }
+export const AP_BANDS = ['2.4 GHz', '5 GHz', '6 GHz']
+export const AP_SIGNALS = ['ดีมาก', 'ดี', 'พอใช้', 'อ่อน']
+
+export function apSummary(ap?: ApInfo | null) {
+  if (!ap) return ''
+  return [ap.name?.trim(), ap.ssid?.trim() && `SSID ${ap.ssid.trim()}`, ap.band, ap.signal && `สัญญาณ${ap.signal}`].filter(Boolean).join(' · ')
+}
 
 // วัดกับ Cloudflare โดยตรง (ทั้ง DL/UL รองรับ CORS, ไทยจะวิ่งไป colo BKK)
 const CF = 'https://speed.cloudflare.com'
@@ -150,7 +161,8 @@ export async function runSpeedTest(onProgress?: (phase: SpeedPhase, mbps?: numbe
   const upload = await measure(UL_STREAMS, async (add, signal) => {
     while (!signal.aborted && await uploadOnce(body, add, signal)) { /* ส่งต่อจนหมดเวลา */ }
   }, v => onProgress?.('upload', v))
-  return { at: new Date().toISOString(), download, upload, ping, jitter, ...info }
+  const network = (navigator as Navigator & { connection?: { type?: string } }).connection?.type
+  return { at: new Date().toISOString(), download, upload, ping, jitter, ...info, ...(network ? { network } : {}) }
 }
 
 // ค่าในฟอร์มนับว่า "วัดอัตโนมัติ" ก็ต่อเมื่อยังตรงกับผลวัด ถ้าแก้ตัวเลขเองจะกลายเป็น "กรอกเอง"
@@ -162,9 +174,24 @@ export function isAutoMeasured(download: string, upload: string, meta?: SpeedMet
 export function routeWarning(meta: SpeedMeta): { short: string; long: string } | null {
   if ((meta.asn && RELAY_ASNS.includes(meta.asn)) || RELAY_ISP.test(meta.isp))
     return { short: 'ผ่าน Private Relay/VPN', long: 'ไม่ใช่เน็ตโรงแรมโดยตรง ปิด iCloud Private Relay หรือ VPN แล้วกด Test ใหม่' }
+  if (meta.network === 'cellular')
+    return { short: 'เน็ตมือถือ', long: 'วัดผ่านเน็ตมือถือ ไม่ใช่ Wi‑Fi ปิดข้อมูลมือถือแล้วกด Test ใหม่' }
   if (meta.country && meta.country !== HOME_COUNTRY)
     return { short: 'server ต่างประเทศ', long: 'server อยู่ต่างประเทศ ปิด VPN แล้วกด Test ใหม่' }
   return null
+}
+
+// ฝั่ง server: ค่าที่เก็บลงคอลัมน์ speedMeta = ผลวัด + auto (ตัวเลขที่ส่งยังตรงกับผลวัดไหม) + warning + AP ที่เกาะ
+// รับค่าจาก request ตรง ๆ จึงเช็คชนิดเอง และเก็บ AP เฉพาะช่องข้อความไม่เกิน 100 ตัวอักษร
+export function storedMeta(down: unknown, up: unknown, meta: SpeedMeta | null | undefined, ap: unknown) {
+  const raw = ap && typeof ap === 'object' ? ap as Record<string, unknown> : {}
+  const a = Object.fromEntries((['name', 'ssid', 'bssid', 'band', 'signal'] as const)
+    .filter(k => typeof raw[k] === 'string' && (raw[k] as string).trim())
+    .map(k => [k, (raw[k] as string).trim().slice(0, 100)])) as ApInfo
+  const hasAp = Object.keys(a).length > 0
+  if (!meta && !hasAp) return undefined
+  const m = meta ? { ...meta, auto: isAutoMeasured(String(down ?? ''), String(up ?? ''), meta), warning: routeWarning(meta)?.short ?? null } : { auto: false }
+  return hasAp ? { ...m, ap: a } : m
 }
 
 export function measuredTime(meta: SpeedMeta) {

@@ -7,11 +7,11 @@ import { AppHeader } from '@/components/AppHeader'
 import { SpeedCard } from '@/components/SpeedCard'
 import { ReportPreview, ClearFormModal, SubmitBar } from '@/components/ReportFlow'
 import { EASTIN_LOCS as ELOCS, UNIMMAN_LOCS as ULOCS } from '@/lib/hotels'
-import { reportTag, type SpeedMeta } from '@/lib/speedtest'
+import { reportTag, type SpeedMeta, type ApInfo } from '@/lib/speedtest'
 const F='Prompt,sans-serif'; const M='IBM Plex Mono,monospace'
 
-interface N{download:string;upload:string;remark:string;meta?:SpeedMeta}
-interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string;internetMeta?:SpeedMeta}
+interface N{download:string;upload:string;remark:string;meta?:SpeedMeta;ap?:ApInfo}
+interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string;internetMeta?:SpeedMeta;internetAp?:ApInfo}
 interface D{nets:Record<string,N>;er:R[];ur:R[]}
 
 const defR=():R=>({roomNumber:'',tvOk:false,telOk:false,internetDown:'',internetUp:'',remark:''})
@@ -45,7 +45,7 @@ function RoomCard({r,onChange}:{r:R;onChange:(f:keyof R,v:R[keyof R])=>void}){
             </button>
           ))}
         </div>
-        <SpeedCard label={`Internet ห้อง ${r.roomNumber||'—'}`} icon="bi-wifi" download={r.internetDown} upload={r.internetUp} remark={r.remark} meta={r.internetMeta} onDownload={v=>onChange('internetDown',v)} onUpload={v=>onChange('internetUp',v)} onRemark={v=>onChange('remark',v)} onMeta={m=>onChange('internetMeta',m)}/>
+        <SpeedCard label={`Internet ห้อง ${r.roomNumber||'—'}`} icon="bi-wifi" download={r.internetDown} upload={r.internetUp} remark={r.remark} meta={r.internetMeta} ap={r.internetAp} onDownload={v=>onChange('internetDown',v)} onUpload={v=>onChange('internetUp',v)} onRemark={v=>onChange('remark',v)} onMeta={m=>onChange('internetMeta',m)} onAp={a=>onChange('internetAp',a)}/>
       </div>
     </div>
   )
@@ -80,7 +80,7 @@ export default function EastinUPage(){
         <div style={{display:'flex',alignItems:'center',gap:10}}><div style={ico(icoStyle.bg,icoStyle.c)}><i className="bi bi-speedometer2"/></div><span style={{fontSize:14,fontWeight:600}}>Network Speed Test</span></div>
         <span style={{fontSize:11,color:'#6B7280',background:'#F3F4F6',padding:'2px 8px',borderRadius:20,fontWeight:500}}>{badge}</span>
       </div>
-      <div style={{padding:'14px 16px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{locs.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} meta={data.nets[l.key]?.meta} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)} onMeta={m=>updN(l.key,'meta',m)}/>)}</div></div>
+      <div style={{padding:'14px 16px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{locs.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} meta={data.nets[l.key]?.meta} ap={data.nets[l.key]?.ap} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)} onMeta={m=>updN(l.key,'meta',m)} onAp={a=>updN(l.key,'ap',a)}/>)}</div></div>
     </div>
   )
 

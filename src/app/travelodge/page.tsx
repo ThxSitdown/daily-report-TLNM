@@ -8,12 +8,12 @@ import { SpeedCard } from '@/components/SpeedCard'
 import { ReportPreview, ClearFormModal, SubmitBar } from '@/components/ReportFlow'
 import { UPS_BUILDINGS } from '@/lib/types'
 import { TRAVELODGE_LOCS as LOCS } from '@/lib/hotels'
-import { reportTag, type SpeedMeta } from '@/lib/speedtest'
+import { reportTag, type SpeedMeta, type ApInfo } from '@/lib/speedtest'
 const F='Prompt,sans-serif'; const M='IBM Plex Mono,monospace'
 
-interface N{download:string;upload:string;remark:string;meta?:SpeedMeta}
+interface N{download:string;upload:string;remark:string;meta?:SpeedMeta;ap?:ApInfo}
 interface U{building:string;backupMin:string;tempC:string;remark:string}
-interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string;internetMeta?:SpeedMeta}
+interface R{roomNumber:string;tvOk:boolean;telOk:boolean;internetDown:string;internetUp:string;remark:string;internetMeta?:SpeedMeta;internetAp?:ApInfo}
 interface S{tempIn:string;tempOut:string;humidity:string;remark:string;humidStatus?:string}
 interface D{nets:Record<string,N>;srv:S;ups:U[];rooms:R[]}
 
@@ -86,7 +86,7 @@ export default function TravelodgePage() {
           {/* NETWORK */}
           <div style={sec()}>
             <div style={secHead}><div style={{display:'flex',alignItems:'center',gap:10}}><div style={{width:30,height:30,borderRadius:7,background:'#FDEAED',color:'#C8102E',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15}}><i className="bi bi-speedometer2"/></div><span style={{fontSize:14,fontWeight:600}}>Network Speed Test</span></div><span style={{fontSize:11,color:'#6B7280',background:'#F3F4F6',padding:'2px 8px',borderRadius:20,fontWeight:500}}>4 จุด</span></div>
-            <div style={{padding:'14px 16px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{LOCS.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} meta={data.nets[l.key]?.meta} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)} onMeta={m=>updN(l.key,'meta',m)}/>)}</div></div>
+            <div style={{padding:'14px 16px'}}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{LOCS.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} meta={data.nets[l.key]?.meta} ap={data.nets[l.key]?.ap} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)} onMeta={m=>updN(l.key,'meta',m)} onAp={a=>updN(l.key,'ap',a)}/>)}</div></div>
           </div>
 
           {/* SERVER ROOM */}
@@ -146,7 +146,7 @@ export default function TravelodgePage() {
                         </button>
                       ))}
                     </div>
-                    <SpeedCard label={`Internet ห้อง ${r.roomNumber||'—'}`} icon="bi-wifi" download={r.internetDown} upload={r.internetUp} remark={r.remark} meta={r.internetMeta} onDownload={v=>updR(i,'internetDown',v)} onUpload={v=>updR(i,'internetUp',v)} onRemark={v=>updR(i,'remark',v)} onMeta={m=>updR(i,'internetMeta',m)}/>
+                    <SpeedCard label={`Internet ห้อง ${r.roomNumber||'—'}`} icon="bi-wifi" download={r.internetDown} upload={r.internetUp} remark={r.remark} meta={r.internetMeta} ap={r.internetAp} onDownload={v=>updR(i,'internetDown',v)} onUpload={v=>updR(i,'internetUp',v)} onRemark={v=>updR(i,'remark',v)} onMeta={m=>updR(i,'internetMeta',m)} onAp={a=>updR(i,'internetAp',a)}/>
                   </div>
                 </div>
               ))}
