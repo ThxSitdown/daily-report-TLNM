@@ -1,12 +1,8 @@
 'use client'
 import { useEffect, useId, useState } from 'react'
 import { runSpeedTest, isAutoMeasured, measuredTime, routeWarning, apSummary, AP_BANDS, AP_SIGNALS, type SpeedMeta, type SpeedPhase, type ApInfo } from '@/lib/speedtest'
-const F = 'Prompt,sans-serif'
-const M = 'IBM Plex Mono,monospace'
+import { Field } from '@/components/ui'
 interface Props { label:string; icon:string; download:string; upload:string; remark:string; meta?:SpeedMeta; ap?:ApInfo; onDownload:(v:string)=>void; onUpload:(v:string)=>void; onRemark:(v:string)=>void; onMeta:(m:SpeedMeta)=>void; onAp:(a:ApInfo)=>void }
-
-const pill = (bg:string, color:string):React.CSSProperties => ({ alignSelf:'flex-start', display:'inline-flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:600, background:bg, color })
-const small:React.CSSProperties = { fontSize:12, padding:'6px 8px', borderRadius:6 }
 
 // ชื่อ AP / SSID ที่เคยกรอก จำไว้ในเครื่องให้เลือกซ้ำได้เร็ว
 const loadList = (k:string):string[] => { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch { return [] } }
@@ -19,16 +15,14 @@ function ApFields({ ap, onAp }:{ ap?:ApInfo; onAp:(a:ApInfo)=>void }) {
   useEffect(() => { setNames(loadList('apNames')); setSsids(loadList('apSsids')) }, [])
   const set = (k:keyof ApInfo, v:string) => onAp({ ...(ap || {}), [k]: v })
   return (
-    <div style={{ padding:'0 9px 9px', display:'flex', flexDirection:'column', gap:6 }}>
-      <input placeholder="ชื่อ AP เช่น AP-Lobby-01" list={`${id}-n`} value={ap?.name || ''} onChange={e=>set('name', e.target.value)} onBlur={()=>remember('apNames', ap?.name)} style={small}/>
-      <datalist id={`${id}-n`}>{names.map(n => <option key={n} value={n}/>)}</datalist>
-      <input placeholder="SSID (ชื่อ Wi‑Fi)" list={`${id}-s`} value={ap?.ssid || ''} onChange={e=>set('ssid', e.target.value)} onBlur={()=>remember('apSsids', ap?.ssid)} style={small}/>
-      <datalist id={`${id}-s`}>{ssids.map(n => <option key={n} value={n}/>)}</datalist>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
-        <select value={ap?.band || ''} onChange={e=>set('band', e.target.value)} style={{ ...small, paddingRight:24, backgroundPosition:'right 6px center' }}><option value="">ย่านความถี่</option>{AP_BANDS.map(b => <option key={b}>{b}</option>)}</select>
-        <select value={ap?.signal || ''} onChange={e=>set('signal', e.target.value)} style={{ ...small, paddingRight:24, backgroundPosition:'right 6px center' }}><option value="">สัญญาณ</option>{AP_SIGNALS.map(s => <option key={s}>{s}</option>)}</select>
+    <div className="stack-sm" style={{ padding:'4px 10px 10px' }}>
+      <Field label="ชื่อ AP">{fid => <><input id={fid} className="input-sm" placeholder="เช่น AP-Lobby-01" list={`${id}-n`} value={ap?.name || ''} onChange={e=>set('name', e.target.value)} onBlur={()=>remember('apNames', ap?.name)}/><datalist id={`${id}-n`}>{names.map(n => <option key={n} value={n}/>)}</datalist></>}</Field>
+      <Field label="SSID (ชื่อ Wi‑Fi)">{fid => <><input id={fid} className="input-sm" placeholder="เช่น Travelodge-Guest" list={`${id}-s`} value={ap?.ssid || ''} onChange={e=>set('ssid', e.target.value)} onBlur={()=>remember('apSsids', ap?.ssid)}/><datalist id={`${id}-s`}>{ssids.map(n => <option key={n} value={n}/>)}</datalist></>}</Field>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+        <Field label="ย่านความถี่">{fid => <select id={fid} className="input-sm" value={ap?.band || ''} onChange={e=>set('band', e.target.value)}><option value="">ไม่ระบุ</option>{AP_BANDS.map(b => <option key={b}>{b}</option>)}</select>}</Field>
+        <Field label="สัญญาณ">{fid => <select id={fid} className="input-sm" value={ap?.signal || ''} onChange={e=>set('signal', e.target.value)}><option value="">ไม่ระบุ</option>{AP_SIGNALS.map(s => <option key={s}>{s}</option>)}</select>}</Field>
       </div>
-      <input placeholder="BSSID / MAC ของ AP (ถ้ามี)" value={ap?.bssid || ''} onChange={e=>set('bssid', e.target.value)} style={{ ...small, fontFamily:M }}/>
+      <Field label="BSSID / MAC ของ AP" hint="ถ้ามี เช่นจาก netsh wlan show interfaces">{fid => <input id={fid} className="input-sm mono" placeholder="aa:bb:cc:dd:ee:ff" value={ap?.bssid || ''} onChange={e=>set('bssid', e.target.value)}/>}</Field>
     </div>
   )
 }
@@ -37,74 +31,74 @@ export function SpeedCard({ label, icon, download, upload, remark, meta, ap, onD
   const [phase, setPhase] = useState<'idle'|SpeedPhase|'done'|'error'>('idle')
   const [live, setLive] = useState<number>()
   const [apOpen, setApOpen] = useState(false)
+  const [announce, setAnnounce] = useState('')
+  const apPanel = useId(), remarkId = useId()
   const busy = phase==='ping'||phase==='download'||phase==='upload'
   const run = async () => {
-    setPhase('ping'); setLive(undefined)
+    setPhase('ping'); setLive(undefined); setAnnounce(`เริ่มวัดความเร็ว ${label}`)
     try {
       const r = await runSpeedTest((ph, v) => { setPhase(ph); setLive(v) })
       onDownload(String(r.download)); onUpload(String(r.upload)); onMeta(r); setPhase('done')
+      setAnnounce(`วัด ${label} เสร็จ ดาวน์โหลด ${r.download} อัปโหลด ${r.upload} เมกะบิตต่อวินาที`)
       if (!ap?.name) setApOpen(true) // เตือนให้กรอก AP ที่เกาะตอนวัด
-    } catch { setPhase('error') }
+    } catch { setPhase('error'); setAnnounce(`วัด ${label} ไม่สำเร็จ`) }
   }
-  const apText = apSummary(ap)
   const auto = isAutoMeasured(download, upload, meta)
   const when = auto && meta ? measuredTime(meta) : null
   const warn = auto && meta ? routeWarning(meta) : null
-  const btnBg = phase==='done' ? '#D1FAE5' : phase==='error' ? '#FEE2E2' : busy ? '#F3F4F6' : '#C8102E'
-  const btnColor = phase==='done' ? '#059669' : phase==='error' ? '#DC2626' : busy ? '#6B7280' : '#fff'
+  const apText = apSummary(ap)
+  const btn = busy ? 'btn-secondary' : phase==='error' ? 'btn-danger-soft' : phase==='done' ? 'btn-secondary' : 'btn-primary'
   return (
-    <div style={{ border:'1.5px solid #E5E7EB', borderRadius:9, overflow:'hidden', background:'#fff' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 11px', background:'#F8F8F8', borderBottom:'1px solid #E5E7EB' }}>
-        <span style={{ fontSize:13, fontWeight:600, color:'#111', display:'flex', alignItems:'center', gap:6, fontFamily:F }}>
-          <i className={`bi ${icon}`} style={{ color:'#C8102E', fontSize:14 }}/>{label}
-        </span>
-        <button onClick={run} disabled={busy} style={{ padding:'4px 10px', fontSize:12, fontWeight:600, borderRadius:5, border:'none', background:btnBg, color:btnColor, cursor:busy?'not-allowed':'pointer', display:'flex', alignItems:'center', gap:4, fontFamily:F, whiteSpace:'nowrap' }}>
-          {busy && <span style={{ width:10, height:10, border:'2px solid currentColor', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.7s linear infinite', display:'inline-block' }}/>}
-          {phase==='ping'?'Ping...':phase==='download'?`↓ ${live ?? '...'}`:phase==='upload'?`↑ ${live ?? '...'}`:phase==='done'?'✓ Done':phase==='error'?'✕ Retry':'▶ Test'}
+    <article className="subcard">
+      <div className="subcard-header">
+        <i className={`bi ${icon}`} style={{ color:'var(--accent)' }} aria-hidden="true"/>
+        <h3 className="subcard-title grow">{label}</h3>
+        <button type="button" onClick={run} disabled={busy} className={`btn btn-sm ${btn}`}>
+          {busy ? <><i className="bi bi-arrow-repeat spin" aria-hidden="true"/><span className="mono">{phase==='ping' ? 'Ping' : `${phase==='download'?'↓':'↑'} ${live ?? '…'}`}</span></>
+            : phase==='done' ? <><i className="bi bi-arrow-clockwise" aria-hidden="true"/>วัดใหม่</>
+            : phase==='error' ? <><i className="bi bi-arrow-clockwise" aria-hidden="true"/>ลองใหม่</>
+            : <><i className="bi bi-play-fill" aria-hidden="true"/>Test</>}
+          <span className="sr-only"> {label}</span>
         </button>
       </div>
-      {busy && <div style={{ height:3, background:'#E5E7EB', overflow:'hidden' }}><div style={{ height:'100%', background: phase==='upload'?'#7C3AED':'#C8102E', width:'55%', animation:'prog 1.4s ease-in-out infinite' }}/></div>}
-      <div style={{ padding:'10px 11px', display:'flex', flexDirection:'column', gap:8 }}>
+      {busy && <div className={`progress ${phase==='upload'?'upload':''}`} aria-hidden="true"><span/></div>}
+      <div className="subcard-body">
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-          <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-            <span style={{ fontSize:11, fontWeight:600, color:'#1A56A0', textTransform:'uppercase', letterSpacing:'0.4px', display:'flex', alignItems:'center', gap:3 }}>
-              <i className="bi bi-arrow-down-circle-fill"/>↓ DL</span>
-            <input type="number" step="0.1" placeholder="Mbps" value={download} onChange={e=>onDownload(e.target.value)}
-              style={{ fontFamily:M, fontSize:16, fontWeight:500, textAlign:'center', padding:'7px', border:'1.5px solid #E5E7EB', borderRadius:7, background:'#fff', width:'100%', outline:'none' }}/>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-            <span style={{ fontSize:11, fontWeight:600, color:'#6B21A8', textTransform:'uppercase', letterSpacing:'0.4px', display:'flex', alignItems:'center', gap:3 }}>
-              <i className="bi bi-arrow-up-circle-fill"/>↑ UL</span>
-            <input type="number" step="0.1" placeholder="Mbps" value={upload} onChange={e=>onUpload(e.target.value)}
-              style={{ fontFamily:M, fontSize:16, fontWeight:500, textAlign:'center', padding:'7px', border:'1.5px solid #E5E7EB', borderRadius:7, background:'#fff', width:'100%', outline:'none' }}/>
-          </div>
+          <Field label="Download" icon="bi-arrow-down-circle">{id => <input id={id} className="input-metric" type="number" inputMode="decimal" min="0" step="0.1" placeholder="Mbps" value={download} onChange={e=>onDownload(e.target.value)}/>}</Field>
+          <Field label="Upload" icon="bi-arrow-up-circle">{id => <input id={id} className="input-metric" type="number" inputMode="decimal" min="0" step="0.1" placeholder="Mbps" value={upload} onChange={e=>onUpload(e.target.value)}/>}</Field>
         </div>
+
+        {phase==='error' && <div className="alert alert-danger" role="alert"><i className="bi bi-exclamation-octagon" aria-hidden="true"/>วัดไม่สำเร็จ ตรวจการเชื่อมต่อแล้วกดลองใหม่</div>}
         {meta && when ? (
-          <div style={{ display:'flex', flexDirection:'column', gap:2, fontSize:11, lineHeight:1.5, color:'#6B7280' }}>
+          <div className="stack-sm" style={{ gap:2, fontSize:'var(--text-xs)', color:'var(--text-muted)' }}>
             {warn ? <>
-              <span style={pill('#FEE2E2','#B91C1C')}><i className="bi bi-shield-exclamation"/>{warn.short} {when.label}</span>
-              <span style={{ color:'#B91C1C' }}>{warn.long}</span>
+              <span className="badge badge-danger" style={{ alignSelf:'flex-start' }}><i className="bi bi-shield-exclamation" aria-hidden="true"/>{warn.short} · {when.label}</span>
+              <span style={{ color:'var(--danger)' }}>{warn.long}</span>
             </> : (
-              <span style={when.today ? pill('#D1FAE5','#059669') : pill('#FEF3C7','#B45309')}>
-                <i className={`bi ${when.today?'bi-patch-check-fill':'bi-exclamation-triangle-fill'}`}/>{when.today?'วัดอัตโนมัติ':'วัดไว้เมื่อ'} {when.label}
+              <span className={`badge ${when.today ? 'badge-success' : 'badge-warning'}`} style={{ alignSelf:'flex-start' }}>
+                <i className={`bi ${when.today?'bi-patch-check-fill':'bi-exclamation-triangle-fill'}`} aria-hidden="true"/>{when.today?'วัดอัตโนมัติ':'วัดไว้เมื่อ'} {when.label}
               </span>
             )}
-            <span style={{ fontFamily:M }}>ping {meta.ping} ms · jitter {meta.jitter} ms</span>
+            <span className="mono">ping {meta.ping} ms · jitter {meta.jitter} ms</span>
             <span>{[meta.server, meta.isp].filter(Boolean).join(' · ')}</span>
           </div>
         ) : (download||upload) ? (
-          <span style={pill('#F3F4F6','#6B7280')}><i className="bi bi-pencil-fill"/>กรอกเอง</span>
+          <span className="badge badge-neutral" style={{ alignSelf:'flex-start' }}><i className="bi bi-pencil-fill" aria-hidden="true"/>กรอกเอง</span>
         ) : null}
-        <div style={{ border:'1px dashed #D1D5DB', borderRadius:7 }}>
-          <button onClick={()=>setApOpen(o=>!o)} style={{ width:'100%', display:'flex', alignItems:'center', gap:5, padding:'6px 9px', background:'transparent', fontSize:12, color:apText?'#374151':'#9CA3AF', textAlign:'left', fontFamily:F }}>
-            <i className="bi bi-router"/><span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{apText || 'AP ที่เกาะตอน Test'}</span><i className={`bi bi-chevron-${apOpen?'up':'down'}`}/>
+
+        <div style={{ border:'1px dashed var(--border-strong)', borderRadius:'var(--radius-md)' }}>
+          <button type="button" className="disclosure" aria-expanded={apOpen} aria-controls={apPanel} onClick={()=>setApOpen(o=>!o)}>
+            <i className="bi bi-router" aria-hidden="true"/>
+            <span className="grow" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: apText ? 'var(--text)' : undefined }}>{apText || 'AP ที่เกาะตอน Test'}</span>
+            <i className={`bi bi-chevron-${apOpen?'up':'down'}`} aria-hidden="true"/>
           </button>
-          {apOpen && <ApFields ap={ap} onAp={onAp}/>}
+          <div id={apPanel} hidden={!apOpen}>{apOpen && <ApFields ap={ap} onAp={onAp}/>}</div>
         </div>
-        <input type="text" placeholder="Remark..." value={remark} onChange={e=>onRemark(e.target.value)}
-          style={{ fontSize:13, color:'#6B7280', border:'1.5px solid #E5E7EB', borderRadius:7, padding:'7px 10px', width:'100%', outline:'none' }}/>
+
+        <label htmlFor={remarkId} className="sr-only">หมายเหตุ {label}</label>
+        <input id={remarkId} type="text" placeholder="หมายเหตุ (ถ้ามี)" value={remark} onChange={e=>onRemark(e.target.value)}/>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes prog{0%{transform:translateX(-120%)}100%{transform:translateX(240%)}}`}</style>
-    </div>
+      <span className="sr-only" role="status" aria-live="polite">{announce}</span>
+    </article>
   )
 }

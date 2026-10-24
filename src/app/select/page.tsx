@@ -1,87 +1,45 @@
 'use client'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/lib/useAuth'
+import { AppHeader } from '@/components/AppHeader'
+import { PageLoading } from '@/components/ui'
+import { accentVars, TRAVELODGE_LOCS, EASTIN_LOCS, UNIMMAN_LOCS } from '@/lib/hotels'
 
-const F = 'Prompt, sans-serif'
-const btn = (bg: string): React.CSSProperties => ({
-  width:'100%', background:'none', border:'none', padding:0, cursor:'pointer', borderRadius:14, overflow:'hidden', textAlign:'left'
-})
+const HOTEL_CARDS = [
+  { key:'travelodge', href:'/travelodge', name:'Travelodge Nimman', img:'/images.png', place:'Chiang Mai · 413 ห้อง', spots:TRAVELODGE_LOCS.map(l=>l.label).join(', ') },
+  { key:'eastin-u', href:'/eastin-u', name:'Eastin Tan & U Nimman', img:'/Unimman.png', place:'Chiang Mai · 2 โรงแรม', spots:`Eastin ${EASTIN_LOCS.length} จุด · U Nimman ${UNIMMAN_LOCS.length} จุด` },
+]
 
 export default function SelectPage() {
   const { user, loading, logout } = useAuth()
-  const router = useRouter()
 
-  if (loading) return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#111', color:'#6B7280', fontFamily:F }}>กำลังโหลด...</div>
-  )
+  if (loading) return <PageLoading text="กำลังโหลด..."/>
 
   return (
-    <div style={{ minHeight:'100vh', background:'#111', fontFamily:F }}>
-      {/* Top bar */}
-      <div style={{ background:'#000', borderBottom:'3px solid #C8102E', padding:'0 16px', height:52, display:'flex', alignItems:'center', gap:12 }}>
-        <span style={{ flex:1, fontSize:14, fontWeight:600, color:'#fff', display:'flex', alignItems:'center', gap:7 }}>
-          <i className="bi bi-clipboard2-check" style={{ color:'#C8102E', fontSize:16 }}/> Daily Report System
-        </span>
-        {user?.role === 'admin' && (
-          <button onClick={() => router.push('/admin')} style={{ padding:'4px 12px', background:'rgba(250,204,21,0.12)', color:'#FACC15', border:'1px solid rgba(250,204,21,0.25)', borderRadius:6, fontSize:12, fontWeight:600, display:'flex', alignItems:'center', gap:5, cursor:'pointer', fontFamily:F }}>
-            <i className="bi bi-shield-lock"/> Admin
-          </button>
-        )}
-        <span style={{ fontSize:12, color:'#9CA3AF', display:'flex', alignItems:'center', gap:5 }}>
-          <i className="bi bi-person-circle"/>{user?.username}
-        </span>
-        <button onClick={logout} style={{ padding:'4px 10px', background:'rgba(200,16,46,0.12)', color:'#F87171', border:'1px solid rgba(200,16,46,0.2)', borderRadius:6, fontSize:12, display:'flex', alignItems:'center', gap:5, cursor:'pointer', fontFamily:F }}>
-          <i className="bi bi-box-arrow-right"/> ออก
-        </button>
-      </div>
-
-      <div style={{ maxWidth:700, margin:'0 auto', padding:'40px 16px' }}>
-        <div style={{ textAlign:'center', marginBottom:36 }}>
-          <h1 style={{ fontSize:26, fontWeight:700, color:'#fff', marginBottom:8 }}>เลือกโรงแรม</h1>
-          <p style={{ fontSize:14, color:'#6B7280' }}>กรุณาเลือกโรงแรมที่ต้องการทำ Daily Report</p>
+    <div>
+      <AppHeader username={user?.username||''} showBack={false} onLogout={logout}
+        actions={user?.role === 'admin' && <Link href="/admin" className="btn btn-sm btn-on-dark"><i className="bi bi-shield-lock" aria-hidden="true"/><span className="hide-xs">จัดการผู้ใช้</span><span className="sr-only"> (Admin)</span></Link>}/>
+      <main id="main" className="page" style={{ maxWidth:640, paddingTop:'var(--sp-8)' }}>
+        <div style={{ textAlign:'center', marginBottom:'var(--sp-4)' }}>
+          <h1 style={{ fontSize:'var(--text-2xl)' }}>เลือกโรงแรม</h1>
+          <p className="muted">เลือกโรงแรมที่ต้องการทำ Daily Report</p>
         </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          {/* Travelodge */}
-          <button style={btn('')} onClick={() => router.push('/travelodge')}>
-            <div style={{ background:'linear-gradient(135deg,#1E3A5F,#C8102E)', padding:'22px 20px 14px', position:'relative', overflow:'hidden', borderRadius:14, transition:'transform 0.15s, box-shadow 0.15s' }}
-              onMouseEnter={e=>{(e.currentTarget as HTMLDivElement).style.transform='translateY(-3px)';(e.currentTarget as HTMLDivElement).style.boxShadow='0 12px 36px rgba(0,0,0,0.5)'}}
-              onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.transform='';(e.currentTarget as HTMLDivElement).style.boxShadow=''}}>
-              <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.2)' }}/>
-              <div style={{ position:'relative', display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
-                <img src="/images.png" style={{ width:48, height:48, borderRadius:12, objectFit:'cover', flexShrink:0 }}/>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>Travelodge Nimman</div>
-                  <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)' }}>Chiang Mai</div>
+        <ul className="stack" style={{ listStyle:'none' }}>
+          {HOTEL_CARDS.map(h => (
+            <li key={h.key} style={accentVars(h.key)}>
+              <Link href={h.href} className="card card-link">
+                <img src={h.img} alt="" width={56} height={56} style={{ borderRadius:'var(--radius-md)', objectFit:'cover', flexShrink:0 }}/>
+                <div className="grow">
+                  <h2 style={{ fontSize:'var(--text-xl)' }}>{h.name}</h2>
+                  <p className="muted" style={{ fontSize:'var(--text-sm)' }}>{h.place}</p>
+                  <p className="subtle" style={{ fontSize:'var(--text-xs)', marginTop:2 }}>{h.spots}</p>
                 </div>
-                <i className="bi bi-arrow-right-circle-fill" style={{ fontSize:26, color:'rgba(255,255,255,0.6)' }}/>
-              </div>
-              <span style={{ position:'relative', fontSize:11, color:'rgba(255,255,255,0.6)', background:'rgba(0,0,0,0.25)', padding:'4px 10px', borderRadius:20 }}>
-                413 Rooms · Cafe 6T6, The Lodge, Lobby, Swim&Gym
-              </span>
-            </div>
-          </button>
-
-          {/* Eastin + U Nimman */}
-          <button style={btn('')} onClick={() => router.push('/eastin-u')}>
-            <div style={{ background:'linear-gradient(135deg,#0D4A3A,#0891B2)', padding:'22px 20px 14px', position:'relative', overflow:'hidden', borderRadius:14, transition:'transform 0.15s, box-shadow 0.15s' }}
-              onMouseEnter={e=>{(e.currentTarget as HTMLDivElement).style.transform='translateY(-3px)';(e.currentTarget as HTMLDivElement).style.boxShadow='0 12px 36px rgba(0,0,0,0.5)'}}
-              onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.transform='';(e.currentTarget as HTMLDivElement).style.boxShadow=''}}>
-              <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.2)' }}/>
-              <div style={{ position:'relative', display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
-                <img src="/Unimman.png" style={{ width:48, height:48, borderRadius:12, objectFit:'cover', flexShrink:0 }}/>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>Eastin Tan & U Nimman</div>
-                  <div style={{ fontSize:13, color:'rgba(255,255,255,0.65)' }}>Chiang Mai</div>
-                </div>
-                <i className="bi bi-arrow-right-circle-fill" style={{ fontSize:26, color:'rgba(255,255,255,0.6)' }}/>
-              </div>
-              <span style={{ position:'relative', fontSize:11, color:'rgba(255,255,255,0.6)', background:'rgba(0,0,0,0.25)', padding:'4px 10px', borderRadius:20 }}>
-                2 Hotels · Eastin: 4 จุด · U Nimman: 3 จุด
-              </span>
-            </div>
-          </button>
-        </div>
-      </div>
+                <i className="bi bi-arrow-right-circle-fill go" aria-hidden="true"/>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </main>
     </div>
   )
 }

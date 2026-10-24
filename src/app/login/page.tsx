@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Field } from '@/components/ui'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -9,59 +10,39 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  useEffect(() => { fetch('/api/auth/me').then(r => { if (r.ok) router.replace('/select') }) }, [])
+  useEffect(() => { fetch('/api/auth/me').then(r => { if (r.ok) router.replace('/select') }).catch(() => {}) }, [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true)
-    const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ username, password }) })
-    const d = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(d.error); return }
-    router.replace('/select')
+    try {
+      const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ username, password }) })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(d.error || 'เข้าสู่ระบบไม่สำเร็จ'); return }
+      router.replace('/select')
+    } catch { setError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่') }
+    finally { setLoading(false) }
   }
 
   return (
-    <div style={{ minHeight:'100vh', background:'#111', display:'flex', alignItems:'center', justifyContent:'center', padding:20,
-      backgroundImage:'radial-gradient(circle at 20% 50%, rgba(200,16,46,0.08) 0%, transparent 60%)' }}>
-      <div style={{ background:'#1C1C1C', border:'1px solid #2A2A2A', borderRadius:16, padding:'40px 32px', width:'100%', maxWidth:380, boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }}>
-        <div style={{ textAlign:'center', marginBottom:32 }}>
-          <img
-                    src="/images.png"
-                    style={{ width:160, height:'auto', marginBottom:14, display:'block', margin:'0 auto 14px' }}
-                  />
-          <h1 style={{ fontSize:22, fontWeight:700, color:'#fff', fontFamily:'Prompt,sans-serif' }}>IT Daily Report</h1>
-          <p style={{ fontSize:13, color:'#6B7280', marginTop:4, fontFamily:'Prompt,sans-serif' }}>Hotel Management System</p>
+    <main id="main" className="auth">
+      <div className="auth-card">
+        <div style={{ textAlign:'center', marginBottom:'var(--sp-6)' }}>
+          <img src="/images.png" alt="Travelodge" width={160} style={{ height:'auto', display:'block', margin:'0 auto var(--sp-3)' }}/>
+          <h1 style={{ fontSize:'var(--text-2xl)', fontWeight:700, color:'#fff' }}>IT Daily Report</h1>
+          <p style={{ fontSize:'var(--text-sm)', color:'#D1D5DB', marginTop:4 }}>Hotel Management System</p>
         </div>
-        <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-            <label style={{ fontSize:11, fontWeight:600, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.5px', display:'flex', alignItems:'center', gap:5, fontFamily:'Prompt,sans-serif' }}>
-              <i className="bi bi-person"/> Username
-            </label>
-            <input type="text" autoComplete="username" required placeholder="กรอก Username"
-              value={username} onChange={e => setUsername(e.target.value)}
-              style={{ background:'#111', borderColor:'#2A2A2A', color:'#fff' }}/>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-            <label style={{ fontSize:11, fontWeight:600, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.5px', display:'flex', alignItems:'center', gap:5, fontFamily:'Prompt,sans-serif' }}>
-              <i className="bi bi-lock"/> Password
-            </label>
-            <input type="password" autoComplete="current-password" required placeholder="กรอก Password"
-              value={password} onChange={e => setPassword(e.target.value)}
-              style={{ background:'#111', borderColor:'#2A2A2A', color:'#fff' }}/>
-          </div>
-          {error && (
-            <div style={{ background:'rgba(200,16,46,0.12)', border:'1px solid rgba(200,16,46,0.3)', color:'#F87171', padding:'10px 12px', borderRadius:8, fontSize:13, display:'flex', alignItems:'center', gap:6, fontFamily:'Prompt,sans-serif' }}>
-              <i className="bi bi-exclamation-circle"/> {error}
-            </div>
-          )}
-          <button type="submit" disabled={loading} style={{ marginTop:6, padding:13, background:'#C8102E', color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:8, cursor: loading?'not-allowed':'pointer', opacity:loading?0.7:1, fontFamily:'Prompt,sans-serif' }}>
-            {loading ? '⏳ กำลังเข้าสู่ระบบ...' : <><i className="bi bi-box-arrow-in-right"/> เข้าสู่ระบบ</>}
+        <form onSubmit={submit} className="stack">
+          <Field label="Username" icon="bi-person">{id => <input id={id} type="text" autoComplete="username" required placeholder="กรอก Username" value={username} onChange={e => setUsername(e.target.value)} aria-invalid={!!error} aria-describedby={error ? 'login-error' : undefined}/>}</Field>
+          <Field label="Password" icon="bi-lock">{id => <input id={id} type="password" autoComplete="current-password" required placeholder="กรอก Password" value={password} onChange={e => setPassword(e.target.value)} aria-invalid={!!error} aria-describedby={error ? 'login-error' : undefined}/>}</Field>
+          {error && <div id="login-error" className="alert alert-danger" role="alert"><i className="bi bi-exclamation-circle" aria-hidden="true"/>{error}</div>}
+          <button type="submit" disabled={loading} className="btn btn-primary btn-lg btn-block" style={{ marginTop:'var(--sp-2)' }}>
+            <i className={`bi ${loading ? 'bi-arrow-repeat spin' : 'bi-box-arrow-in-right'}`} aria-hidden="true"/>{loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>
         </form>
-        <p style={{ textAlign:'center', fontSize:12, color:'#4B5563', marginTop:20, display:'flex', alignItems:'center', justifyContent:'center', gap:5, fontFamily:'Prompt,sans-serif' }}>
-          <i className="bi bi-info-circle"/> ติดต่อ Admin เพื่อขอรหัสผ่าน
+        <p className="row" style={{ justifyContent:'center', fontSize:'var(--text-xs)', color:'#D1D5DB', marginTop:'var(--sp-5)' }}>
+          <i className="bi bi-info-circle" aria-hidden="true"/>ติดต่อ Admin เพื่อขอรหัสผ่าน
         </p>
       </div>
-    </div>
+    </main>
   )
 }

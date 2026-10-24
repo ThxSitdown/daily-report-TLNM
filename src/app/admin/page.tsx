@@ -2,97 +2,94 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/useAuth'
 import { AppHeader } from '@/components/AppHeader'
-const F = 'Prompt,sans-serif'
+import { ConfirmDialog, Field, PageLoading, Section } from '@/components/ui'
 interface U { id:string; username:string; role:string; createdAt:string }
 
 export default function AdminPage() {
   const { user, loading, logout } = useAuth({ requireAdmin: true })
   const [users, setUsers] = useState<U[]>([])
+  const [loadErr, setLoadErr] = useState(false)
   const [nu, setNu] = useState(''); const [np, setNp] = useState('')
   const [msg, setMsg] = useState<{t:'ok'|'err';s:string}|null>(null)
   const [adding, setAdding] = useState(false)
-  const load = () => fetch('/api/users').then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setUsers(d) })
+  const [delTarget, setDelTarget] = useState<U|null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const load = () => fetch('/api/users').then(r=>r.json()).then(d=>{ if(Array.isArray(d)) { setUsers(d); setLoadErr(false) } else setLoadErr(true) }).catch(()=>setLoadErr(true))
   useEffect(() => { if(!loading) load() }, [loading])
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault(); setAdding(true); setMsg(null)
-    const res = await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:nu,password:np})})
-    const d = await res.json(); setAdding(false)
-    if(!res.ok){setMsg({t:'err',s:d.error});return}
-    setMsg({t:'ok',s:`เพิ่ม "${nu}" สำเร็จ`}); setNu(''); setNp(''); load()
+    try {
+      const res = await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:nu,password:np})})
+      const d = await res.json()
+      if(!res.ok){setMsg({t:'err',s:d.error||'เพิ่มผู้ใช้ไม่สำเร็จ'});return}
+      setMsg({t:'ok',s:`เพิ่ม "${nu}" สำเร็จ`}); setNu(''); setNp(''); load()
+    } catch { setMsg({t:'err',s:'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง'}) }
+    finally { setAdding(false) }
   }
-  const del = async (id:string,name:string) => {
-    if(!confirm(`ลบผู้ใช้ "${name}"?`)) return
-    const res = await fetch('/api/users',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})})
-    const d = await res.json()
-    if(!res.ok){setMsg({t:'err',s:d.error});return}
-    setMsg({t:'ok',s:`ลบ "${name}" แล้ว`}); load()
+  const del = async () => {
+    if(!delTarget) return
+    const { id, username:name } = delTarget
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/users',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})})
+      const d = await res.json()
+      if(!res.ok){setMsg({t:'err',s:d.error||'ลบไม่สำเร็จ'});return}
+      setMsg({t:'ok',s:`ลบ "${name}" แล้ว`}); load()
+    } catch { setMsg({t:'err',s:'เชื่อมต่อไม่สำเร็จ ลองใหม่อีกครั้ง'}) }
+    finally { setDeleting(false); setDelTarget(null) }
   }
 
-  if(loading) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#111',color:'#6B7280',fontFamily:F}}>กำลังโหลด...</div>
+  if(loading) return <PageLoading text="กำลังโหลด..."/>
 
-  const card = {background:'#1C1C1C',border:'1px solid #2A2A2A',borderRadius:12,padding:18}
   return (
-    <div style={{minHeight:'100vh',background:'#111',fontFamily:F}}>
+    <div>
       <AppHeader username={user?.username||''} showBack onLogout={logout}/>
-      <div style={{maxWidth:560,margin:'0 auto',padding:'24px 16px',display:'flex',flexDirection:'column',gap:14}}>
-        <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <div style={{width:40,height:40,background:'rgba(250,204,21,0.1)',border:'1px solid rgba(250,204,21,0.2)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>
-            <i className="bi bi-shield-lock" style={{color:'#FACC15'}}/>
-          </div>
-          <div><div style={{fontSize:18,fontWeight:700,color:'#fff'}}>จัดการผู้ใช้</div><div style={{fontSize:12,color:'#6B7280'}}>Admin เท่านั้น</div></div>
+      <main id="main" className="page" style={{maxWidth:600}}>
+        <div className="row" style={{gap:'var(--sp-3)'}}>
+          <span className="icon-tile" style={{width:40,height:40,background:'var(--warning-bg)',color:'var(--warning)'}} aria-hidden="true"><i className="bi bi-shield-lock"/></span>
+          <div><h1 style={{fontSize:'var(--text-xl)'}}>จัดการผู้ใช้</h1><p className="muted" style={{fontSize:'var(--text-xs)'}}>เฉพาะ Admin</p></div>
         </div>
 
-        <div style={card}>
-          <div style={{fontSize:14,fontWeight:600,color:'#E5E7EB',marginBottom:14,display:'flex',alignItems:'center',gap:7}}>
-            <i className="bi bi-person-plus-fill" style={{color:'#FACC15'}}/> เพิ่มผู้ใช้ใหม่
-          </div>
-          <form onSubmit={add} style={{display:'flex',flexDirection:'column',gap:10}}>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-              <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                <label style={{fontSize:11,fontWeight:600,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.4px'}}>Username</label>
-                <input type="text" required placeholder="ชื่อผู้ใช้" value={nu} onChange={e=>setNu(e.target.value)} style={{background:'#111',borderColor:'#333',color:'#fff'}}/>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                <label style={{fontSize:11,fontWeight:600,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.4px'}}>Password</label>
-                <input type="password" required placeholder="รหัสผ่าน" value={np} onChange={e=>setNp(e.target.value)} style={{background:'#111',borderColor:'#333',color:'#fff'}}/>
-              </div>
+        {msg && <div className={`alert ${msg.t==='ok'?'alert-success':'alert-danger'}`} role={msg.t==='ok'?'status':'alert'}>
+          <i className={`bi ${msg.t==='ok'?'bi-check-circle':'bi-exclamation-octagon'}`} aria-hidden="true"/>{msg.s}
+        </div>}
+
+        <Section title="เพิ่มผู้ใช้ใหม่" icon="bi-person-plus-fill">
+          <form onSubmit={add} className="stack">
+            <div className="grid-auto" style={{'--col':'200px'} as React.CSSProperties}>
+              <Field label="Username">{id=><input id={id} type="text" required autoComplete="off" placeholder="ชื่อผู้ใช้" value={nu} onChange={e=>setNu(e.target.value)}/>}</Field>
+              <Field label="Password">{id=><input id={id} type="password" required autoComplete="new-password" placeholder="รหัสผ่าน" value={np} onChange={e=>setNp(e.target.value)}/>}</Field>
             </div>
-            {msg && <div style={{padding:'8px 12px',borderRadius:7,fontSize:13,display:'flex',alignItems:'center',gap:6,background:msg.t==='ok'?'rgba(5,150,105,0.12)':'rgba(200,16,46,0.12)',border:`1px solid ${msg.t==='ok'?'rgba(5,150,105,0.3)':'rgba(200,16,46,0.3)'}`,color:msg.t==='ok'?'#34D399':'#F87171'}}>
-              <i className={`bi ${msg.t==='ok'?'bi-check-circle':'bi-exclamation-circle'}`}/>{msg.s}
-            </div>}
-            <button type="submit" disabled={adding} style={{padding:10,background:'#C8102E',color:'#fff',border:'none',borderRadius:8,fontSize:14,fontWeight:600,cursor:adding?'not-allowed':'pointer',opacity:adding?0.7:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,fontFamily:F}}>
-              <i className="bi bi-plus-lg"/> {adding?'กำลังเพิ่ม...':'เพิ่มผู้ใช้'}
+            <button type="submit" disabled={adding} className="btn btn-primary">
+              <i className={`bi ${adding?'bi-arrow-repeat spin':'bi-plus-lg'}`} aria-hidden="true"/>{adding?'กำลังเพิ่ม...':'เพิ่มผู้ใช้'}
             </button>
           </form>
-        </div>
+        </Section>
 
-        <div style={card}>
-          <div style={{fontSize:14,fontWeight:600,color:'#E5E7EB',marginBottom:14,display:'flex',alignItems:'center',gap:7}}>
-            <i className="bi bi-people-fill" style={{color:'#FACC15'}}/> ผู้ใช้ทั้งหมด ({users.length})
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        <Section title={`ผู้ใช้ทั้งหมด (${users.length})`} icon="bi-people-fill">
+          {loadErr && <div className="alert alert-danger" role="alert"><i className="bi bi-exclamation-octagon" aria-hidden="true"/><span className="grow">โหลดรายชื่อผู้ใช้ไม่สำเร็จ</span><button type="button" className="btn btn-sm btn-secondary" onClick={load}>ลองใหม่</button></div>}
+          <ul className="stack-sm" style={{listStyle:'none'}}>
             {users.map(u=>(
-              <div key={u.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px',background:'#242424',border:'1px solid #333',borderRadius:8}}>
-                <div style={{display:'flex',alignItems:'center',gap:10}}>
-                  <div style={{width:34,height:34,background:'#2D2D2D',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,color:'#9CA3AF'}}>
-                    <i className={`bi ${u.role==='admin'?'bi-shield-fill':'bi-person-fill'}`}/>
-                  </div>
-                  <div>
-                    <div style={{fontSize:14,fontWeight:600,color:'#fff'}}>{u.username}</div>
-                    <div style={{fontSize:11,color:u.role==='admin'?'#FACC15':'#6B7280'}}>
-                      {u.role==='admin'?'⭐ Admin':'User'} · {new Date(u.createdAt).toLocaleDateString('th-TH')}
-                    </div>
+              <li key={u.id} className="subcard row" style={{padding:'10px 12px',gap:'var(--sp-3)'}}>
+                <span className="icon-tile" style={{background:'var(--surface-muted)',color:'var(--text-muted)'}} aria-hidden="true"><i className={`bi ${u.role==='admin'?'bi-shield-fill':'bi-person-fill'}`}/></span>
+                <div className="grow">
+                  <div style={{fontWeight:600}}>{u.username}</div>
+                  <div className="row" style={{fontSize:'var(--text-xs)',gap:6}}>
+                    <span className={`badge ${u.role==='admin'?'badge-warning':'badge-neutral'}`}>{u.role==='admin'?'Admin':'User'}</span>
+                    <span className="muted">สร้างเมื่อ {new Date(u.createdAt).toLocaleDateString('th-TH')}</span>
                   </div>
                 </div>
-                {u.role!=='admin'&&<button onClick={()=>del(u.id,u.username)} style={{width:28,height:28,background:'rgba(200,16,46,0.1)',color:'#F87171',border:'1px solid rgba(200,16,46,0.2)',borderRadius:6,fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontFamily:F}}>
-                  <i className="bi bi-trash3"/>
-                </button>}
-              </div>
+                {u.role!=='admin'&&<button type="button" onClick={()=>setDelTarget(u)} className="btn btn-icon btn-danger-soft" aria-label={`ลบผู้ใช้ ${u.username}`}><i className="bi bi-trash3" aria-hidden="true"/></button>}
+              </li>
             ))}
-          </div>
-        </div>
-      </div>
+          </ul>
+        </Section>
+      </main>
+
+      <ConfirmDialog open={!!delTarget} tone="danger" title="ลบผู้ใช้?" confirmLabel="ลบผู้ใช้" busy={deleting}
+        body={<>ผู้ใช้ <b>{delTarget?.username}</b> จะเข้าระบบไม่ได้อีก การลบนี้ย้อนกลับไม่ได้</>}
+        onCancel={()=>setDelTarget(null)} onConfirm={del}/>
     </div>
   )
 }
