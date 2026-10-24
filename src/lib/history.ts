@@ -1,8 +1,8 @@
 import { locLabel } from '@/lib/hotels'
-import type { SpeedMeta, ApInfo } from '@/lib/speedtest'
+import type { SpeedMeta } from '@/lib/speedtest'
 
-// speedMeta ที่เก็บใน DB: ผลวัด + auto/warning ที่ server คำนวณ + AP ที่เกาะ
-export type StoredMeta = Partial<SpeedMeta> & { auto?: boolean; warning?: string | null; ap?: ApInfo }
+// speedMeta ที่เก็บใน DB: ผลวัด + auto/warning ที่ server คำนวณ
+export type StoredMeta = Partial<SpeedMeta> & { auto?: boolean; warning?: string | null }
 
 // รายงาน 1 ฉบับตามที่ GET /api/reports ส่งกลับมา (เฉพาะที่กดยืนยันส่ง จึงมี reportText เสมอ)
 export interface Report {

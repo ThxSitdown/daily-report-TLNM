@@ -19,8 +19,8 @@ export function RoomCard({ room, index, onChange }:{ room:RoomData; index:number
           )
         })}
       </div>
-      <SpeedCard label={`Internet ห้อง ${room.roomNumber || index + 1}`} icon="bi-wifi" download={room.internetDown} upload={room.internetUp} remark={room.remark} meta={room.internetMeta} ap={room.internetAp}
-        onDownload={v=>onChange('internetDown', v)} onUpload={v=>onChange('internetUp', v)} onRemark={v=>onChange('remark', v)} onMeta={m=>onChange('internetMeta', m)} onAp={a=>onChange('internetAp', a)}/>
+      <SpeedCard label={`Internet ห้อง ${room.roomNumber || index + 1}`} icon="bi-wifi" download={room.internetDown} upload={room.internetUp} remark={room.remark} meta={room.internetMeta}
+        onDownload={v=>onChange('internetDown', v)} onUpload={v=>onChange('internetUp', v)} onRemark={v=>onChange('remark', v)} onMeta={m=>onChange('internetMeta', m)}/>
     </div>
   )
 }

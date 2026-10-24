@@ -5,7 +5,6 @@ import { AppHeader } from '@/components/AppHeader'
 import { CopyButton } from '@/components/ReportFlow'
 import { PageLoading } from '@/components/ui'
 import { HOTELS, accentVars } from '@/lib/hotels'
-import { apSummary } from '@/lib/speedtest'
 import { testRows, dateRange, shiftAnchor, rangeLabel, type Report, type TestRow, type RangeMode } from '@/lib/history'
 
 const MODES:[RangeMode,string][]=[['day','วัน'],['week','สัปดาห์'],['month','เดือน'],['all','ทั้งหมด']]
@@ -14,7 +13,7 @@ const time=(iso:string)=>new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit
 const pad=(n:number)=>String(n).padStart(2,'0')
 const toInput=(d:Date)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
 
-// รายละเอียดแต่ละจุดที่วัด: ความเร็ว, สถานะการวัด, ping/server/ค่ายเน็ต และ AP ที่เกาะ
+// รายละเอียดแต่ละจุดที่วัด: ความเร็ว, สถานะการวัด, ping/server/ค่ายเน็ต
 function TestDetails({ rows }:{ rows:TestRow[] }){
   if(!rows.length)return null
   return(
@@ -22,7 +21,7 @@ function TestDetails({ rows }:{ rows:TestRow[] }){
       <h3 className="row" style={{fontSize:'var(--text-sm)',color:'var(--text-muted)'}}><i className="bi bi-speedometer2" aria-hidden="true"/>รายละเอียดการวัด</h3>
       <ul className="stack-sm" style={{listStyle:'none'}}>
         {rows.map((t,i)=>{
-          const m=t.meta;const ap=apSummary(m?.ap)
+          const m=t.meta
           const st=m?.auto?(m.warning?{t:m.warning,c:'badge-danger',i:'bi-shield-exclamation'}:{t:'วัดอัตโนมัติ',c:'badge-success',i:'bi-patch-check-fill'}):m?.at?{t:'แก้ตัวเลขหลังวัด',c:'badge-warning',i:'bi-pencil-fill'}:{t:'กรอกเอง',c:'badge-neutral',i:'bi-pencil-fill'}
           return(
             <li key={i} className="subcard" style={{padding:'10px 12px',fontSize:'var(--text-sm)'}}>
@@ -31,9 +30,7 @@ function TestDetails({ rows }:{ rows:TestRow[] }){
                 <span className="mono">↓{t.down??'—'} / ↑{t.up??'—'} Mbps</span>
                 <span className={`badge ${st.c}`}><i className={`bi ${st.i}`} aria-hidden="true"/>{st.t}{m?.at?` · ${time(m.at)}`:''}</span>
               </div>
-              {m?.at&&<div className="muted" style={{fontSize:'var(--text-xs)',marginTop:4}}>ping {m.ping} ms · jitter {m.jitter} ms · {[m.server,m.isp,m.network&&(NET[m.network]||m.network)].filter(Boolean).join(' · ')}</div>}
-              <div className="row" style={{fontSize:'var(--text-xs)',marginTop:2,color:ap?'var(--text)':'var(--text-subtle)'}}><i className="bi bi-router" aria-hidden="true"/><span>{ap||'ไม่ได้ระบุ AP'}{m?.ap?.bssid?<span className="mono"> · BSSID {m.ap.bssid}</span>:null}</span></div>
-            </li>
+              {m?.at&&<div className="muted" style={{fontSize:'var(--text-xs)',marginTop:4}}>ping {m.ping} ms · jitter {m.jitter} ms · {[m.server,m.isp,m.network&&(NET[m.network]||m.network)].filter(Boolean).join(' · ')}</div>}            </li>
           )
         })}
       </ul>

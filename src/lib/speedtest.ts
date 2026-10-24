@@ -13,16 +13,6 @@ export interface SpeedMeta {
 }
 export type SpeedPhase = 'ping' | 'download' | 'upload'
 
-// AP ที่เครื่องเกาะตอนวัด browser อ่านค่าเหล่านี้เองไม่ได้ (ถูกบล็อกเพื่อความเป็นส่วนตัว) จึงให้คนกรอก
-export interface ApInfo { name?: string; ssid?: string; bssid?: string; band?: string; signal?: string }
-export const AP_BANDS = ['2.4 GHz', '5 GHz', '6 GHz']
-export const AP_SIGNALS = ['ดีมาก', 'ดี', 'พอใช้', 'อ่อน']
-
-export function apSummary(ap?: ApInfo | null) {
-  if (!ap) return ''
-  return [ap.name?.trim(), ap.ssid?.trim() && `SSID ${ap.ssid.trim()}`, ap.band, ap.signal && `สัญญาณ${ap.signal}`].filter(Boolean).join(' · ')
-}
-
 // วัดกับ Cloudflare โดยตรง (ทั้ง DL/UL รองรับ CORS, ไทยจะวิ่งไป colo BKK)
 const CF = 'https://speed.cloudflare.com'
 const DURATION_MS = 10000 // เวลาวัดต่อเฟส
@@ -181,17 +171,10 @@ export function routeWarning(meta: SpeedMeta): { short: string; long: string } |
   return null
 }
 
-// ฝั่ง server: ค่าที่เก็บลงคอลัมน์ speedMeta = ผลวัด + auto (ตัวเลขที่ส่งยังตรงกับผลวัดไหม) + warning + AP ที่เกาะ
-// รับค่าจาก request ตรง ๆ จึงเช็คชนิดเอง และเก็บ AP เฉพาะช่องข้อความไม่เกิน 100 ตัวอักษร
-export function storedMeta(down: unknown, up: unknown, meta: SpeedMeta | null | undefined, ap: unknown) {
-  const raw = ap && typeof ap === 'object' ? ap as Record<string, unknown> : {}
-  const a = Object.fromEntries((['name', 'ssid', 'bssid', 'band', 'signal'] as const)
-    .filter(k => typeof raw[k] === 'string' && (raw[k] as string).trim())
-    .map(k => [k, (raw[k] as string).trim().slice(0, 100)])) as ApInfo
-  const hasAp = Object.keys(a).length > 0
-  if (!meta && !hasAp) return undefined
-  const m = meta ? { ...meta, auto: isAutoMeasured(String(down ?? ''), String(up ?? ''), meta), warning: routeWarning(meta)?.short ?? null } : { auto: false }
-  return hasAp ? { ...m, ap: a } : m
+// ฝั่ง server: ค่าที่เก็บลงคอลัมน์ speedMeta = ผลวัด + auto (ตัวเลขที่ส่งยังตรงกับผลวัดไหม) + warning
+export function storedMeta(down: unknown, up: unknown, meta: SpeedMeta | null | undefined) {
+  if (!meta) return undefined
+  return { ...meta, auto: isAutoMeasured(String(down ?? ''), String(up ?? ''), meta), warning: routeWarning(meta)?.short ?? null }
 }
 
 export function measuredTime(meta: SpeedMeta) {

@@ -72,7 +72,7 @@ export default function TravelodgePage() {
       <main id="main" className="page">
         {showRpt?<ReportPreview text={rpt} sent={sent} sending={sub} historyHref="/history/travelodge" onEdit={backToForm} onConfirm={confirmSend} onNew={backToForm}/>:(<>
           <Section title="Network Speed Test" icon="bi-speedometer2" badge={`${LOCS.length} จุด`} bodyClassName="grid-auto grid-cards">
-            {LOCS.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} meta={data.nets[l.key]?.meta} ap={data.nets[l.key]?.ap} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)} onMeta={m=>updN(l.key,'meta',m)} onAp={a=>updN(l.key,'ap',a)}/>)}
+            {LOCS.map(l=><SpeedCard key={l.key} label={l.label} icon={l.icon} download={data.nets[l.key]?.download||''} upload={data.nets[l.key]?.upload||''} remark={data.nets[l.key]?.remark||''} meta={data.nets[l.key]?.meta} onDownload={v=>updN(l.key,'download',v)} onUpload={v=>updN(l.key,'upload',v)} onRemark={v=>updN(l.key,'remark',v)} onMeta={m=>updN(l.key,'meta',m)}/>)}
           </Section>
 
           <Section title="Server Room" icon="bi-server" tone={{bg:'var(--surface-muted)',fg:'#374151'}}>
