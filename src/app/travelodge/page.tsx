@@ -77,10 +77,10 @@ export default function TravelodgePage() {
 
           <Section title="Server Room" icon="bi-server" tone={{bg:'var(--surface-muted)',fg:'#374151'}}>
             <div className="grid-auto" style={{'--col':'150px'} as React.CSSProperties}>
-              <Field label="Temp In (°C)" icon="bi-thermometer-half">{id=><input id={id} type="number" inputMode="decimal" step="0.1" placeholder="23.5" value={data.srv.tempIn} onChange={e=>upd({srv:{...data.srv,tempIn:e.target.value}})}/>}</Field>
-              <Field label="Temp Out (°C)" icon="bi-thermometer">{id=><input id={id} type="number" inputMode="decimal" step="0.1" placeholder="23.2" value={data.srv.tempOut} onChange={e=>upd({srv:{...data.srv,tempOut:e.target.value}})}/>}</Field>
+              <Field label="Temp In (°C)" icon="bi-thermometer-half">{id=><input id={id} type="number" inputMode="decimal" step="0.1" placeholder="XX.X" value={data.srv.tempIn} onChange={e=>upd({srv:{...data.srv,tempIn:e.target.value}})}/>}</Field>
+              <Field label="Temp Out (°C)" icon="bi-thermometer">{id=><input id={id} type="number" inputMode="decimal" step="0.1" placeholder="XX.X" value={data.srv.tempOut} onChange={e=>upd({srv:{...data.srv,tempOut:e.target.value}})}/>}</Field>
               <Field label="Humidity (%)" icon="bi-droplet-half" extra={hl&&!hBad?<span className={`badge ${HS[hl]}`}>{hl}</span>:null} hint={hBad?<span style={{color:'var(--danger)'}}>ต้องอยู่ระหว่าง 0–100</span>:undefined}>
-                {id=><input id={id} type="number" inputMode="decimal" min="0" max="100" placeholder="59" aria-invalid={hBad} value={data.srv.humidity} onChange={e=>upd({srv:{...data.srv,humidity:e.target.value}})}/>}
+                {id=><input id={id} type="number" inputMode="decimal" min="0" max="100" placeholder="XX" aria-invalid={hBad} value={data.srv.humidity} onChange={e=>upd({srv:{...data.srv,humidity:e.target.value}})}/>}
               </Field>
               <Field label="สถานะความชื้น" icon="bi-sliders" hint="ปล่อยอัตโนมัติ หรือเลือกให้ตรงกับเครื่องวัด">
                 {id=><select id={id} value={data.srv.humidStatus||''} onChange={e=>upd({srv:{...data.srv,humidStatus:e.target.value}})}><option value="">อัตโนมัติ{ha?` (${ha})`:''}</option>{Object.keys(HS).map(k=><option key={k} value={k}>{k}</option>)}</select>}
@@ -100,8 +100,8 @@ export default function TravelodgePage() {
                 <div className="subcard-body">
                   <div className="grid-auto" style={{'--col':'130px'} as React.CSSProperties}>
                     <Field label="ตึก" icon="bi-building">{id=><select id={id} value={u.building} onChange={e=>updU(i,'building',e.target.value)}>{UPS_BUILDINGS.map(b=><option key={b}>{b}</option>)}</select>}</Field>
-                    <Field label="Backup (นาที)" icon="bi-clock-history">{id=><input id={id} type="number" inputMode="numeric" min="0" placeholder="12" value={u.backupMin} onChange={e=>updU(i,'backupMin',e.target.value)}/>}</Field>
-                    <Field label="Temp (°C)" icon="bi-thermometer">{id=><input id={id} type="number" inputMode="decimal" step="0.1" placeholder="32" value={u.tempC} onChange={e=>updU(i,'tempC',e.target.value)}/>}</Field>
+                    <Field label="Backup (นาที)" icon="bi-clock-history">{id=><input id={id} type="number" inputMode="numeric" min="0" placeholder="XX" value={u.backupMin} onChange={e=>updU(i,'backupMin',e.target.value)}/>}</Field>
+                    <Field label="Temp (°C)" icon="bi-thermometer">{id=><input id={id} type="number" inputMode="decimal" step="0.1" placeholder="XX.X" value={u.tempC} onChange={e=>updU(i,'tempC',e.target.value)}/>}</Field>
                   </div>
                   <Field label="หมายเหตุ">{id=><input id={id} type="text" placeholder="หมายเหตุ (ถ้ามี)" value={u.remark} onChange={e=>updU(i,'remark',e.target.value)}/>}</Field>
                 </div>
